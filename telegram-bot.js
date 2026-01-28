@@ -69,7 +69,7 @@ const EMAIL_CONFIG = {
   pass: process.env.EMAIL_PASSWORD || 'your-app-password-here'
 };
 
-// ⚠️ REPLICATE API KEY (Face Swap)
+// ⚠️ REPLICATE API KEY (Ideogram AI v3 Turbo - ATIVO)
 // Crie uma conta gratuita em https://replicate.com e pegue sua API key
 const REPLICATE_API_KEY = process.env.REPLICATE_API_KEY || 'YOUR_REPLICATE_KEY_HERE';
 
@@ -1787,39 +1787,250 @@ Se você inverte, ninguém mais confia em você.
       }, 500);
     });
 
-    // 🎭 Comando /imagem - Gerar imagem com Stable Diffusion
+    // 🎭 Comando /imagem - Gerar imagem com opções premium
     this.bot.onText(/\/imagem (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
       const prompt = match[1];
       const emoji = COMMAND_ICONS['/imagem'];
-      
-      await this.bot.sendMessage(chatId, `${emoji} *Deixa eu pintaar um quadro com seus sonhos...*\n\n⏳ Isso pode levar 30-60 segundos, mas vai valer a pena!`);
-      
+
+      // Menu de opções premium
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { text: '🚀 Ideogram AI v3 Turbo (Premium)', callback_data: `ideogram_${prompt.replace(/\s+/g, '_')}` },
+            { text: '⚡ Pollinations.ai (Grátis)', callback_data: `pollinations_${prompt.replace(/\s+/g, '_')}` }
+          ],
+          [
+            { text: '🎯 Auto (Ideogram + Fallback)', callback_data: `auto_${prompt.replace(/\s+/g, '_')}` }
+          ]
+        ]
+      };
+
+      await this.bot.sendMessage(chatId,
+        `${emoji} *🎨 Geração de Imagens - Escolha sua Opção!*\n\n` +
+        `*"${prompt}"*\n\n` +
+        `⭐ *Opções Disponíveis:*\n\n` +
+        `🚀 *Ideogram AI v3 Turbo:*\n` +
+        `• Qualidade fotográfica realista\n` +
+        `• Composições sofisticadas\n` +
+        `• Controle avançado de luz/cor\n` +
+        `• Suporte a texto complexo\n` +
+        `• $0.03 por imagem\n\n` +
+        `⚡ *Pollinations.ai:*\n` +
+        `• Geração gratuita e rápida\n` +
+        `• Qualidade boa para uso geral\n` +
+        `• Sem custos\n\n` +
+        `🎯 *Auto:*\n` +
+        `• Tenta Ideogram primeiro\n` +
+        `• Fallback automático para Pollinations\n` +
+        `• Melhor custo-benefício`,
+        {
+          reply_markup: keyboard,
+          parse_mode: 'Markdown'
+        }
+      );
+    });
+
+    // Handler para callbacks de imagem
+    this.bot.on('callback_query', async (query) => {
+      const chatId = query.message.chat.id;
+      const data = query.data;
+      const emoji = '🎨';
+
+      if (data.startsWith('ideogram_') || data.startsWith('pollinations_') || data.startsWith('auto_')) {
+        const type = data.split('_')[0];
+        const prompt = data.split('_').slice(1).join(' ').replace(/_/g, ' ');
+
+        await this.bot.answerCallbackQuery(query.id, '⏳ Gerando imagem...');
+
+        try {
+          let imageUrl, caption;
+
+          if (type === 'ideogram' || type === 'auto') {
+            try {
+              // Tentar Ideogram primeiro
+              await this.bot.sendMessage(chatId, `${emoji} 🚀 *Tentando Ideogram AI v3 Turbo...*`);
+
+              const ideogramResponse = await fetch('https://api.replicate.com/v1/predictions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Token ${REPLICATE_API_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  version: "39b34219-0870-4e3f-8b7f-2b1b6b0b1e9f",
+                  input: {
+                    prompt: prompt,
+                    aspect_ratio: "3:2",
+                    resolution: "None",
+                    magic_prompt_option: "Auto",
+                    style_type: "None",
+                    style_preset: "None",
+                    seed: Math.floor(Math.random() * 1000000)
+                  }
+                })
+              });
+
+              if (ideogramResponse.ok) {
+                const prediction = await ideogramResponse.json();
+                const predictionId = prediction.id;
+
+                // Polling
+                let result;
+                let attempts = 0;
+                const maxAttempts = 25;
+
+                while (attempts < maxAttempts) {
+                  await new Promise(resolve => setTimeout(resolve, 1200));
+
+                  const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+                    headers: {
+                      'Authorization': `Token ${REPLICATE_API_KEY}`
+                    }
+                  });
+
+                  result = await statusResponse.json();
+
+                  if (result.status === 'succeeded') break;
+                  if (result.status === 'failed') throw new Error('Geração falhou');
+
+                  attempts++;
+                }
+
+                if (result?.output) {
+                  imageUrl = result.output;
+                  caption = `${emoji} *🎨 Ideogram AI v3 Turbo - Premium Quality!*\n\n"${prompt}"\n\n⭐ *Recursos Exclusivos:*\n• Realismo fotográfico\n• Composições sofisticadas\n• Controle preciso de luz e cor\n• Renderização realística\n• Suporte a texto complexo\n\n⚡ *Turbo Mode:* Mais rápido que Quality!\n💰 *Custo benefício excepcional*`;
+                } else {
+                  throw new Error('Timeout na geração');
+                }
+              } else {
+                throw new Error('API Indisponível');
+              }
+
+            } catch (error) {
+              console.log('Ideogram falhou, tentando fallback...');
+              if (type === 'auto') {
+                // Fallback para Pollinations
+                await this.bot.sendMessage(chatId, `${emoji} ⚡ *Fallback: Usando Pollinations.ai...*`);
+                imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=768&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
+                caption = `${emoji} *🎨 Imagem Gerada (Fallback)*\n\n"${prompt}"\n\n⚡ *Pollinations.ai - Grátis*\n• Geração rápida\n• Qualidade boa\n• Sem custos`;
+              } else {
+                throw error;
+              }
+            }
+          } else if (type === 'pollinations') {
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=768&model=flux&seed=${Math.floor(Math.random() * 1000000)}`;
+            caption = `${emoji} *🎨 Imagem Gerada*\n\n"${prompt}"\n\n⚡ *Pollinations.ai - Grátis*\n• Geração rápida\n• Qualidade boa\n• Sem custos`;
+          }
+
+          if (imageUrl) {
+            const imageResponse = await fetch(imageUrl);
+            const imageBuffer = await imageResponse.arrayBuffer();
+            const buffer = Buffer.from(imageBuffer);
+
+            await this.bot.sendPhoto(chatId, buffer, {
+              caption: caption,
+              parse_mode: 'Markdown'
+            });
+          }
+
+        } catch (error) {
+          console.error('Erro na geração de imagem:', error);
+          await this.bot.sendMessage(chatId,
+            `${emoji} *❌ Erro na Geração de Imagem*\n\n` +
+            `🔴 ${error.message}\n\n` +
+            `💡 *Tente novamente ou use:* \`/ideogram ${prompt}\``,
+            { parse_mode: 'Markdown' }
+          );
+        }
+      }
+    });
+
+    // Comando /ideogram - Versão premium do Ideogram AI v3 Turbo
+    this.bot.onText(/\/ideogram (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const prompt = match[1];
+      const emoji = '🎨';
+
+      await this.bot.sendMessage(chatId, `${emoji} *🚀 Ideogram AI v3 Turbo - Máxima Qualidade!*\n\n⏳ Gerando imagem premium com tecnologia de ponta...`);
+
       try {
-        // Usando Pollinations.ai (API gratuita e estável)
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true`;
-        
-        // Baixar a imagem
-        const response = await fetch(imageUrl);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const ideogramResponse = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${REPLICATE_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            version: "39b34219-0870-4e3f-8b7f-2b1b6b0b1e9f",
+            input: {
+              prompt: prompt,
+              aspect_ratio: "3:2",
+              resolution: "None",
+              magic_prompt_option: "Auto",
+              style_type: "None",
+              style_preset: "None",
+              seed: Math.floor(Math.random() * 1000000)
+            }
+          })
+        });
+
+        if (!ideogramResponse.ok) {
+          throw new Error(`API Error: ${ideogramResponse.status}`);
         }
 
-        const imageBuffer = await response.arrayBuffer();
+        const prediction = await ideogramResponse.json();
+        const predictionId = prediction.id;
+
+        // Polling com progresso
+        let result;
+        let attempts = 0;
+        const maxAttempts = 25;
+
+        while (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1200));
+
+          const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+            headers: {
+              'Authorization': `Token ${REPLICATE_API_KEY}`
+            }
+          });
+
+          result = await statusResponse.json();
+
+          if (result.status === 'succeeded') break;
+          if (result.status === 'failed') throw new Error('Geração falhou');
+
+          attempts++;
+        }
+
+        if (!result?.output) throw new Error('Timeout na geração');
+
+        const imageResponse = await fetch(result.output);
+        const imageBuffer = await imageResponse.arrayBuffer();
         const buffer = Buffer.from(imageBuffer);
 
-        // Enviar imagem
         await this.bot.sendPhoto(chatId, buffer, {
-          caption: `${emoji} *Voilà! Seu quadro está pronto!*\n\n"${prompt}"\n\n✨ Criado com amor e IA\n⚡ Powered by Pollinations.ai`
+          caption: `${emoji} *🎨 Ideogram AI v3 Turbo - Premium Quality!*\n\n"${prompt}"\n\n` +
+                  `⭐ *Recursos Exclusivos:*\n` +
+                  `• Realismo fotográfico\n` +
+                  `• Composições sofisticadas\n` +
+                  `• Controle preciso de luz e cor\n` +
+                  `• Renderização realística\n` +
+                  `• Suporte a texto complexo\n\n` +
+                  `⚡ *Turbo Mode:* Mais rápido que Quality!\n` +
+                  `💰 *Custo benefício excepcional*`,
+          parse_mode: 'Markdown'
         });
+
       } catch (error) {
-        console.error('Erro ao gerar imagem:', error);
-        await this.bot.sendMessage(chatId, 
-          `${emoji} *Ops! Algo deu errado no meu estúdio de pintura...*\n\n❌ ${error.message}\n\n` +
-          `💡 *Tenta de novo com uma descrição diferente?*\n` +
-          `Ex: "Um gato usando óculos de sol em Marte"`,
-          { parse_mode: 'Markdown' }    
+        console.error('Erro no Ideogram:', error);
+        await this.bot.sendMessage(chatId,
+          `${emoji} *❌ Erro no Ideogram AI v3 Turbo*\n\n` +
+          `🔴 ${error.message}\n\n` +
+          `💡 *Use* \`/imagem\` *para fallback automático*\n` +
+          `📝 Exemplo: \`/ideogram um carro esportivo futurista\``,
+          { parse_mode: 'Markdown' }
         );
       }
     });
