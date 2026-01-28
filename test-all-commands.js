@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 🧪 Teste Completo de Todos os 19 Comandos da OlympIA
+// 🧪 Teste Completo de Todos os 22 Comandos da OlympIA
 
 import fs from 'fs';
 import path from 'path';
@@ -25,7 +25,10 @@ const commands = [
   { name: '/conhecimento', regex: /this\.bot\.onText\(\/\\\/conhecimento/, desc: 'Base de conhecimento' },
   { name: '/kb:stats', regex: /this\.bot\.onText\(\/\\\/kb:stats/, desc: 'Estatísticas da base' },
   { name: '/marketing', regex: /this\.bot\.onText\(\/\\\/marketing/, desc: 'Dicas SEO & Marketing' },
-  { name: '/promocao', regex: /this\.bot\.onText\(\/\\\/promocao/, desc: 'Posts prontos' }
+  { name: '/promocao', regex: /this\.bot\.onText\(\/\\\/promocao/, desc: 'Posts prontos' },
+  { name: '/social', regex: /this\.bot\.onText\(\/\\\/social/, desc: 'Social Media' },
+  { name: '/vip', regex: /this\.bot\.onText\(\/\\\/vip/, desc: 'Hot Commands' },
+  { name: '/favoritos', regex: /this\.bot\.onText\(\/\\\/favoritos/, desc: 'Gerenciar Favoritos' }
 ];
 
 console.log('🧪 TESTE COMPLETO DA OLYMPIA BOT\n');

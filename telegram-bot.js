@@ -54,6 +54,19 @@ const NEWS_API_URL = 'https://newsapi.org/v2/everything';
 // Armazenar conversas e lembretes
 const conversations = {};
 const reminders = {};
+const userFavorites = {}; // Favoritos dos usuários
+
+// 🌟 HOT COMMANDS - Mais Utilizados
+const HOT_COMMANDS = [
+  { name: '/gerar', emoji: '✨', desc: 'Gerar conteúdo criativo com IA', category: 'IA' },
+  { name: '/imagem', emoji: '🎨', desc: 'Gerar imagem 1024x1024px', category: 'IA' },
+  { name: '/pdf', emoji: '📄', desc: 'Gerar PDF com conteúdo', category: 'Utilidades' },
+  { name: '/promocao', emoji: '📢', desc: '5 posts prontos para redes sociais', category: 'Marketing' },
+  { name: '/email', emoji: '📧', desc: 'Enviar email via Gmail', category: 'Utilidades' },
+  { name: '/marketing', emoji: '📊', desc: 'Estratégia SEO e Marketing', category: 'Marketing' },
+  { name: '/conhecimento', emoji: '🧠', desc: 'Busca na base de conhecimento com RAG', category: 'IA' },
+  { name: '/chat', emoji: '💬', desc: 'Chat com memória de contexto', category: 'IA' }
+];
 
 class TelegramOlympIA {
   constructor() {
@@ -91,7 +104,7 @@ class TelegramOlympIA {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId, 
         '🤖 *Olá! Eu sou a OlympIA!*\n' +
-        'Bot de Automação IA para Telegram com 19 comandos\n\n' +
+        'Bot de Automação IA para Telegram com 22 comandos\n\n' +
         
         '🧠 *IA & Criatividade* (5 comandos)\n' +
         '• `/gerar` - Gerar textos, analisar, chat com memória\n' +
@@ -124,9 +137,14 @@ class TelegramOlympIA {
         '• `/conhecimento` - Busca na base de conhecimento\n' +
         '• `/kb:stats` - Mostra estatísticas da base\n\n' +
         
-        '📊 *Marketing & SEO* (2 novos!)\n' +
+        '📊 *Marketing & SEO* (2 comandos)\n' +
         '• `/marketing` - Estratégia SEO, Marketing e Redes Sociais 📱\n' +
         '• `/promocao` - Gera 5 posts prontos para compartilhar 📢\n\n' +
+        
+        '🌟 *Social Media & Favoritos* (3 NOVOS!)\n' +
+        '• `/social` - Estratégia de redes sociais 🌐\n' +
+        '• `/vip` - Hot Commands (mais utilizados) ⭐\n' +
+        '• `/favoritos` - Gerenciar seus favoritos 💖\n\n' +
         
         '💡 *Ou envie qualquer texto para IA responder!*',
         { parse_mode: 'Markdown' }
@@ -369,6 +387,178 @@ Neste artigo, exploraremos como você pode aproveitar o poder da IA para transfo
           `✅ *5 Posts gerados com sucesso!*\n\nDica: Adapte os posts para sua audiência específica e compartilhe! 📱\n\nUse hashtags relevantes e incentive o compartilhamento! 🚀`
         );
       }, 3500);
+    });
+
+    // 🌐 Comando /social - Social Media e Redes Sociais
+    this.bot.onText(/\/social/, (msg) => {
+      const chatId = msg.chat.id;
+      const socialGuide = `🌐 *ESTRATÉGIA DE SOCIAL MEDIA - REDES SOCIAIS*
+
+*📱 PLATAFORMAS RECOMENDADAS*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔵 *LinkedIn* (Profissional)
+   👥 Público: Executivos, Profissionais
+   📝 Tipo: Posts longos, Artigos, Notícias
+   ⏰ Melhor hora: Terça-Quinta 9-11h
+   💡 Dica: Foque em valor e produtividade
+   Exemplo: "Como IA aumenta produtividade"
+
+📷 *Instagram* (Visual)
+   👥 Público: Designers, Criativos, Jovens
+   📝 Tipo: Stories, Reels, Carrouséis
+   ⏰ Melhor hora: 19-21h Seg-Sex
+   💡 Dica: Use imagens atrativas
+   Exemplo: Screenshots de funcionalidades
+
+🐦 *Twitter/X* (Trending)
+   👥 Público: Tech, News, Inovação
+   📝 Tipo: Tweets curtos, Threads, RT
+   ⏰ Melhor hora: 08-10h, 18-20h
+   💡 Dica: Participe em trends
+   Exemplo: Comentários sobre IA
+
+💬 *WhatsApp* (Pessoal)
+   👥 Público: Amigos, Colegas, Grupos
+   📝 Tipo: Mensagens, Compartilhamentos
+   ⏰ Melhor hora: Qualquer hora
+   💡 Dica: Ofereça algo único
+   Exemplo: Convite para testar
+
+📰 *Blog/Medium* (Conteúdo)
+   👥 Público: Leitores Engajados
+   📝 Tipo: Artigos, Tutoriais, Guides
+   ⏰ Melhor hora: Qualquer hora (SEO)
+   💡 Dica: Escreva sobre problemas reais
+   Exemplo: "Como usar IA em 2026"
+
+*📊 MÉTRICAS IMPORTANTES*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 Engajamento = Reações + Comentários + Compartilhamentos
+👁️  Alcance = Quantas pessoas viram
+🔗 Cliques = Quantas acessaram link
+📱 Conversões = Quantas testaram/assinaram
+⏱️  Tempo = Melhor horário para postar
+
+*🎯 DICAS RÁPIDAS*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Poste consistentemente (2-3x semana)
+✅ Use imagens/vídeos (aumenta 80% engajamento)
+✅ Responda comentários rapidamente
+✅ Crie value, não venda direto
+✅ Teste diferentes horários
+✅ Acompanhe suas melhores performances
+✅ Colabore com influenciadores
+✅ Use hashtags relevantes
+
+*💰 MONETIZAÇÃO*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 Ofertas: Teste grátis, Demo, Webinar
+💎 Tier 1: Básico (free)
+💎 Tier 2: Pro ($9/mês)
+💎 Tier 3: Premium ($29/mês)
+🎁 Referral: 20% comissão
+
+Dica: Use /promocao para gerar posts prontos!`;
+
+      this.bot.sendMessage(chatId, socialGuide, { parse_mode: 'Markdown' });
+    });
+
+    // 🌟 Comando /vip - Hot Commands (Mais Utilizados)
+    this.bot.onText(/\/vip/, (msg) => {
+      const chatId = msg.chat.id;
+      
+      let vipMessage = '🌟 *HOT COMMANDS - OS MAIS UTILIZADOS*\n' +
+                       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+      
+      const grouped = {};
+      HOT_COMMANDS.forEach(cmd => {
+        if (!grouped[cmd.category]) grouped[cmd.category] = [];
+        grouped[cmd.category].push(cmd);
+      });
+      
+      Object.keys(grouped).forEach(category => {
+        vipMessage += `*${category}*\n`;
+        grouped[category].forEach(cmd => {
+          vipMessage += `${cmd.emoji} \`${cmd.name}\` - ${cmd.desc}\n`;
+        });
+        vipMessage += '\n';
+      });
+      
+      vipMessage += '💡 *Dica:* Estes comandos são os mais populares!\n' +
+                    '⭐ Use /favoritos para adicionar seus favoritos\n' +
+                    '📝 Use qualquer um deles no Telegram agora!';
+      
+      this.bot.sendMessage(chatId, vipMessage, { parse_mode: 'Markdown' });
+    });
+
+    // ⭐ Comando /favoritos - Gerenciar Favoritos
+    this.bot.onText(/\/favoritos(.*)/, (msg, match) => {
+      const chatId = msg.chat.id;
+      const args = match[1].trim();
+      
+      if (!userFavorites[chatId]) {
+        userFavorites[chatId] = [];
+      }
+
+      if (!args) {
+        // Mostrar favoritos atuais
+        if (userFavorites[chatId].length === 0) {
+          this.bot.sendMessage(chatId,
+            '⭐ *Seus Favoritos*\n\n' +
+            'Você ainda não adicionou favoritos!\n\n' +
+            'Use: `/favoritos add /comando` para adicionar\n' +
+            'Exemplo: `/favoritos add /gerar`'
+          );
+        } else {
+          let favMessage = '⭐ *Seus Favoritos Salvos:*\n\n';
+          userFavorites[chatId].forEach((fav, idx) => {
+            favMessage += `${idx + 1}. ${fav}\n`;
+          });
+          favMessage += '\n💡 Use `/favoritos remove /comando` para remover\n' +
+                       '💡 Use `/favoritos limpar` para limpar todos';
+          
+          this.bot.sendMessage(chatId, favMessage, { parse_mode: 'Markdown' });
+        }
+        return;
+      }
+
+      if (args.startsWith('add')) {
+        const cmd = args.replace('add', '').trim();
+        if (!cmd.startsWith('/')) {
+          this.bot.sendMessage(chatId, '❌ Use `/favoritos add /comando`\nExemplo: `/favoritos add /gerar`');
+          return;
+        }
+        if (!userFavorites[chatId].includes(cmd)) {
+          userFavorites[chatId].push(cmd);
+          this.bot.sendMessage(chatId, `✅ Adicionado aos favoritos: ${cmd}`);
+        } else {
+          this.bot.sendMessage(chatId, `⚠️ ${cmd} já está nos favoritos!`);
+        }
+      } else if (args.startsWith('remove')) {
+        const cmd = args.replace('remove', '').trim();
+        userFavorites[chatId] = userFavorites[chatId].filter(f => f !== cmd);
+        this.bot.sendMessage(chatId, `✅ Removido dos favoritos: ${cmd}`);
+      } else if (args === 'limpar') {
+        userFavorites[chatId] = [];
+        this.bot.sendMessage(chatId, '✅ Favoritos limpos!');
+      } else if (args === 'hot') {
+        // Adicionar todos os HOT commands aos favoritos
+        const hotCmds = HOT_COMMANDS.map(cmd => cmd.name);
+        userFavorites[chatId] = [...new Set([...userFavorites[chatId], ...hotCmds])];
+        this.bot.sendMessage(chatId, 
+          `✅ Adicionados ${hotCmds.length} comandos Hot aos favoritos!`
+        );
+      } else {
+        this.bot.sendMessage(chatId, 
+          '📝 Opções:\n' +
+          '`/favoritos` - Ver seus favoritos\n' +
+          '`/favoritos add /comando` - Adicionar\n' +
+          '`/favoritos remove /comando` - Remover\n' +
+          '`/favoritos limpar` - Limpar todos\n' +
+          '`/favoritos hot` - Adicionar todos Hot Commands'
+        );
+      }
     });
 
     // Comando /ajuda
