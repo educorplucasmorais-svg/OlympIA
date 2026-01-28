@@ -1,0 +1,22 @@
+Métrica,Valor
+Período (dias),30
+Data do Relatório,2026-01-28T07:03:39.534Z
+Usuários Ativos,3
+Total de Comandos,13
+Taxa de Sucesso,100.00%
+Média de Comandos por Usuário,4.33
+
+Comando,Usos,Tempo Médio (ms)
+"/gerar",4,1242.50
+"/conhecimento",2,2225.00
+"/marketing",2,2075.00
+"/chat",1,450.00
+"/email",1,1800.00
+"/imagem",1,3450.00
+"/pdf",1,890.00
+"/promocao",1,2700.00
+
+Usuário,Email,Comandos,Tipos Únicos
+"João Silva","joao@example.com",5,4
+"Maria Santos","maria@example.com",5,4
+"Pedro Oliveira","pedro@example.com",3,3

@@ -14,9 +14,30 @@ import dotenv from 'dotenv';
 import PDFDocument from 'pdfkit';
 import homeAutomation from './home-automation.js';
 import knowledgeBase from './knowledge-base.js';
+import { 
+  initializeDatabase, 
+  registerUser, 
+  loginUser, 
+  getUserByChatId, 
+  getAllUsers, 
+  getUserStats,
+  exportDatabaseAsJSON,
+  getUserLoginHistory
+} from './database.js';
 
-// Carregar variáveis de ambiente
-dotenv.config();
+// 🚀 OTIMIZAÇÕES - Performance e Proteção
+import {
+  kbCache,
+  statsCache,
+  translationCache,
+  initMCPPool,
+  kbRateLimiter,
+  OPTIMIZATION_FLAGS,
+  logPerformance,
+  cachedWithProtection,
+  safeMCPCall,
+  printStatus
+} from './optimization-config.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -105,10 +126,23 @@ class TelegramOlympIA {
   constructor() {
     this.bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
     this.mcpClient = null;
+    this.mcpPool = null; // Pool para reusar conexões
+    
+    // Inicializar banco de dados
+    initializeDatabase();
+    
+    // Sistema de login (armazena estado de registro)
+    this.userRegistration = {}; // { chatId: { step: 'name'|'email', data: {...} } }
+    
     this.setupBot();
   }
 
   async connectMCP() {
+    // Se já temos pool, reusar
+    if (this.mcpPool && OPTIMIZATION_FLAGS.enableMCPPool) {
+      return true;
+    }
+
     try {
       const transport = new StdioClientTransport({
         command: 'node',
@@ -123,7 +157,31 @@ class TelegramOlympIA {
       });
 
       await this.mcpClient.connect(transport);
+      
+      // ✨ Inicializar connection pool para reusar
+      if (OPTIMIZATION_FLAGS.enableMCPPool) {
+        this.mcpPool = initMCPPool(async () => {
+          const newTransport = new StdioClientTransport({
+            command: 'node',
+            args: ['index.js']
+          });
+
+          const client = new Client({
+            name: 'telegram-olympia-client',
+            version: '1.0.0'
+          }, {
+            capabilities: {}
+          });
+
+          await client.connect(newTransport);
+          return client;
+        });
+      }
+
       console.log('✅ Conectado ao OlympIA MCP Server');
+      if (OPTIMIZATION_FLAGS.enableMCPPool) {
+        console.log('✅ Connection Pool MCP inicializado - conexões serão reutilizadas');
+      }
       return true;
     } catch (error) {
       console.error('❌ Erro ao conectar com MCP:', error.message);
@@ -234,10 +292,45 @@ class TelegramOlympIA {
       const query = match[1];
       const emoji = COMMAND_ICONS['/conhecimento'];
       
+      // 🚦 Rate limiting
+      if (OPTIMIZATION_FLAGS.enableRateLimiting) {
+        try {
+          await kbRateLimiter.call(async () => {});
+        } catch (error) {
+          await this.bot.sendMessage(chatId, 
+            `${emoji} *Calma lá!* 🛑\n\nEstou processando muitas perguntas. Tenta novamente em alguns segundos!`
+          );
+          return;
+        }
+      }
+      
+      const startTime = Date.now();
       await this.bot.sendMessage(chatId, `${emoji} *Deixa eu mergulhar na minha base de conhecimento...*`);
       
       try {
-        const result = await knowledgeBase.answerQuestion(query);
+        // ✨ Com cache + timeout + retry
+        let result;
+        
+        if (OPTIMIZATION_FLAGS.enableKBCache) {
+          const cacheKey = `kb:${query.toLowerCase()}`;
+          result = await cachedWithProtection(
+            kbCache,
+            cacheKey,
+            () => knowledgeBase.answerQuestion(query),
+            {
+              operationName: `/conhecimento:${query.substring(0, 20)}`,
+              timeout: OPTIMIZATION_FLAGS.kbTimeout,
+              maxRetries: 2,
+              ttlMs: 5 * 60 * 1000, // 5 minutos
+              enableCache: true
+            }
+          );
+        } else {
+          result = await knowledgeBase.answerQuestion(query);
+        }
+        
+        const timeMs = Date.now() - startTime;
+        logPerformance(`/conhecimento`, timeMs, kbCache.get(`kb:${query.toLowerCase()}`) !== undefined);
         
         if (result.hasContext) {
           let response = `${emoji} *Encontrei essa resposta:*\n\n━━━━━━━━━━━━━━━━━━━━━━\n${result.answer}\n━━━━━━━━━━━━━━━━━━━━━━`;
@@ -245,6 +338,8 @@ class TelegramOlympIA {
           if (result.sources && result.sources.length > 0) {
             response += `\n\n📚 *${result.sources.length} documento(s) consultado(s)*`;
           }
+          
+          response += `\n⏱️ *Tempo: ${timeMs}ms*`;
           
           await this.bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else {
@@ -258,8 +353,9 @@ class TelegramOlympIA {
           );
         }
       } catch (error) {
+        const timeMs = Date.now() - startTime;
         await this.bot.sendMessage(chatId, 
-          `${emoji} *Deu ruim aqui...*\n\n❌ ${error.message}\n\nTenta de novo? 🤔`,
+          `${emoji} *Deu ruim aqui...*\n\n❌ ${error.message}\n\n⏱️ Tempo: ${timeMs}ms\n\nTenta de novo? 🤔`,
           { parse_mode: 'Markdown' }
         );
       }
@@ -270,19 +366,44 @@ class TelegramOlympIA {
       const chatId = msg.chat.id;
       const emoji = COMMAND_ICONS['/conhecimento'];
       
+      const startTime = Date.now();
+      
       try {
-        const stats = await knowledgeBase.getStats();
+        // ✨ Com cache para estatísticas (10 minutos)
+        let stats;
+        
+        if (OPTIMIZATION_FLAGS.enableStatsCache) {
+          stats = await cachedWithProtection(
+            statsCache,
+            'kb:stats',
+            () => knowledgeBase.getStats(),
+            {
+              operationName: '/kb:stats',
+              timeout: 5000,
+              maxRetries: 1,
+              ttlMs: 10 * 60 * 1000, // 10 minutos
+              enableCache: true
+            }
+          );
+        } else {
+          stats = await knowledgeBase.getStats();
+        }
+        
+        const timeMs = Date.now() - startTime;
         
         if (stats && !stats.error) {
-          await this.bot.sendMessage(chatId,
-            `${emoji} *Aqui está o status da minha base de conhecimento:*\n\n` +
+          let response = `${emoji} *Aqui está o status da minha base de conhecimento:*\n\n` +
             `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
             `📚 Total de documentos: ${stats.totalDocuments}\n` +
             `🗃️ Coleção: ${stats.collectionName}\n` +
             `✅ Status: ${stats.initialized ? '🟢 Pronta para usar!' : '⚪ Ainda vazia'}\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━━━`,
-            { parse_mode: 'Markdown' }
-          );
+            `━━━━━━━━━━━━━━━━━━━━━━━━`;
+          
+          if (OPTIMIZATION_FLAGS.enablePerformanceLogging) {
+            response += `\n⏱️ *Tempo: ${timeMs}ms*`;
+          }
+          
+          await this.bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else {
           await this.bot.sendMessage(chatId, 
             `${emoji} *Minha base ainda está vazia!*\n\n` +
@@ -291,8 +412,9 @@ class TelegramOlympIA {
           );
         }
       } catch (error) {
+        const timeMs = Date.now() - startTime;
         await this.bot.sendMessage(chatId, 
-          `${emoji} *Erro ao carregar estatísticas:*\n\n${error.message}`,
+          `${emoji} *Erro ao carregar estatísticas:*\n\n${error.message}\n\n⏱️ Tempo: ${timeMs}ms`,
           { parse_mode: 'Markdown' }
         );
       }
@@ -1474,6 +1596,266 @@ Se você inverte, ninguém mais confia em você.
         '`/casa desligar ar_condicionado`\n' +
         '`/casa cena dormir`\n' +
         '`/casa volume speaker_quarto 30`',
+        { parse_mode: 'Markdown' }
+      );
+    });
+
+    // ============================================
+    // SISTEMA DE LOGIN & BANCO DE DADOS
+    // ============================================
+
+    // 🔐 Comando /login - Sistema de autenticação
+    this.bot.onText(/\/login/, (msg) => {
+      const chatId = msg.chat.id;
+      const emoji = COMMAND_ICONS['/inicio'] || '🔐';
+      
+      // Verificar se usuário já está cadastrado
+      const existingUser = getUserByChatId(chatId);
+      
+      if (existingUser) {
+        this.bot.sendMessage(chatId, 
+          `${emoji} *Você já tem cadastro!*\n\n` +
+          `👤 Nome: ${existingUser.name}\n` +
+          `📧 Email: ${existingUser.email}\n` +
+          `✅ Status: Ativo\n` +
+          `📊 Logins: ${existingUser.login_count}\n` +
+          `🕐 Último login: ${new Date(existingUser.last_login).toLocaleString('pt-BR')}\n\n` +
+          `💡 Use /meus-dados para ver informações completas`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      // Iniciar processo de registro
+      this.userRegistration[chatId] = { step: 'name', data: {} };
+      
+      this.bot.sendMessage(chatId, 
+        `${emoji} *Bem-vindo ao Sistema de Login da OlympIA!* 👋\n\n` +
+        `Vou fazer umas perguntas rápidas para registrar você.\n\n` +
+        `❓ *Qual é seu nome completo?*`
+      );
+    });
+
+    // 📝 Handler para receber nome (primeira etapa do registro)
+    this.bot.on('message', (msg) => {
+      const chatId = msg.chat.id;
+      const text = msg.text;
+
+      // Ignorar se for comando
+      if (text && text.startsWith('/')) return;
+
+      // Se está no processo de registro
+      if (this.userRegistration[chatId]) {
+        const registration = this.userRegistration[chatId];
+
+        if (registration.step === 'name') {
+          registration.data.name = text;
+          registration.step = 'email';
+          
+          this.bot.sendMessage(chatId, 
+            `✅ Anotado! Seu nome é *${text}*\n\n` +
+            `❓ Agora, qual é seu email?`
+          );
+        } 
+        else if (registration.step === 'email') {
+          const email = text.trim();
+          
+          // Validar email
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(email)) {
+            this.bot.sendMessage(chatId, 
+              `❌ Email inválido!\n\n` +
+              `Use um email válido: seu.email@dominio.com`
+            );
+            return;
+          }
+
+          // Registrar usuário no banco
+          registration.data.email = email;
+          const result = registerUser(chatId, registration.data.name, email);
+
+          if (result.success) {
+            this.bot.sendMessage(chatId, 
+              `${COMMAND_ICONS['/inicio'] || '🔐'} *Cadastro Realizado com Sucesso!* 🎉\n\n` +
+              `✅ Bem-vindo, *${registration.data.name}*!\n\n` +
+              `📧 Email registrado: ${email}\n` +
+              `🔐 ID Único: #${result.userId}\n\n` +
+              `🚀 Agora você tem acesso a todos os comandos da OlympIA!\n\n` +
+              `Use /meus-dados para ver seu perfil`,
+              { parse_mode: 'Markdown' }
+            );
+          } else {
+            this.bot.sendMessage(chatId, 
+              `⚠️ ${result.message}`
+            );
+          }
+
+          // Limpar processo de registro
+          delete this.userRegistration[chatId];
+        }
+      }
+    });
+
+    // 👤 Comando /meus-dados - Ver dados do usuário
+    this.bot.onText(/\/meus-dados/, (msg) => {
+      const chatId = msg.chat.id;
+      const emoji = COMMAND_ICONS['/info'] || '👤';
+      
+      const user = getUserByChatId(chatId);
+
+      if (!user) {
+        this.bot.sendMessage(chatId, 
+          `${emoji} *Você ainda não fez login!*\n\n` +
+          `Use /login para registrar-se`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      const history = getUserLoginHistory(user.id, 5);
+      let historyText = '';
+      
+      if (history.length > 0) {
+        historyText = '\n📋 *Últimos Logins:*\n';
+        history.forEach((log, idx) => {
+          historyText += `${idx + 1}. ${new Date(log.login_time).toLocaleString('pt-BR')}\n`;
+        });
+      }
+
+      this.bot.sendMessage(chatId, 
+        `${emoji} *Seus Dados Cadastrados*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `👤 Nome: *${user.name}*\n` +
+        `📧 Email: *${user.email}*\n` +
+        `🔐 ID do Chat: ${user.chat_id}\n` +
+        `✅ Status: ${user.status === 'active' ? '🟢 Ativo' : '⚪ Inativo'}\n` +
+        `📊 Total de Logins: ${user.login_count}\n` +
+        `📅 Data de Registro: ${new Date(user.created_at).toLocaleString('pt-BR')}\n` +
+        `🕐 Último Login: ${new Date(user.last_login).toLocaleString('pt-BR')}\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        historyText,
+        { parse_mode: 'Markdown' }
+      );
+    });
+
+    // 📊 Comando /usuarios - Ver banco de dados (ADMIN)
+    this.bot.onText(/\/usuarios/, (msg) => {
+      const chatId = msg.chat.id;
+      const emoji = '📊';
+
+      // Buscar todos os usuários
+      const users = getAllUsers();
+      const stats = getUserStats();
+
+      if (users.length === 0) {
+        this.bot.sendMessage(chatId, 
+          `${emoji} *Banco de Dados Vazio*\n\n` +
+          `Nenhum usuário registrado ainda!`
+        );
+        return;
+      }
+
+      // Criar tabela de usuários
+      let message = `${emoji} *BANCO DE DADOS - OlympIA Login System*\n\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `📊 *ESTATÍSTICAS GERAIS*\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `👥 Total de Usuários: *${stats.totalUsers}*\n`;
+      message += `🟢 Usuários Ativos: *${stats.activeUsers}*\n`;
+      message += `📝 Total de Logins: *${stats.totalLogins}*\n`;
+      message += `🕐 Logins Hoje: *${stats.loginsToday}*\n\n`;
+
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `📋 *LISTA DE USUÁRIOS*\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+      users.forEach((user, idx) => {
+        message += `${idx + 1}️⃣ *${user.name}*\n`;
+        message += `   📧 Email: ${user.email}\n`;
+        message += `   🆔 Chat ID: ${user.chat_id}\n`;
+        message += `   📊 Logins: ${user.login_count}\n`;
+        message += `   ✅ Status: ${user.status}\n`;
+        message += `   📅 Registro: ${new Date(user.created_at).toLocaleDateString('pt-BR')}\n\n`;
+      });
+
+      message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `💡 Para exportar em JSON: /exportar-db`;
+
+      // Se a mensagem ficar muito grande, dividir
+      if (message.length > 4096) {
+        const chunks = message.match(/[\s\S]{1,4096}/g) || [];
+        chunks.forEach(chunk => {
+          this.bot.sendMessage(chatId, chunk, { parse_mode: 'Markdown' });
+        });
+      } else {
+        this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      }
+    });
+
+    // 📤 Comando /exportar-db - Exportar banco em JSON
+    this.bot.onText(/\/exportar-db/, (msg) => {
+      const chatId = msg.chat.id;
+      const emoji = '📤';
+
+      try {
+        const data = exportDatabaseAsJSON();
+
+        if (!data) {
+          this.bot.sendMessage(chatId, `${emoji} Erro ao exportar banco de dados`);
+          return;
+        }
+
+        const jsonString = JSON.stringify(data, null, 2);
+        const fileName = `olympia-database-${new Date().toISOString().split('T')[0]}.json`;
+        const filePath = path.join('/tmp', fileName);
+
+        fs.writeFileSync(filePath, jsonString);
+
+        this.bot.sendDocument(chatId, filePath, {
+          caption: `${emoji} *Banco de Dados Exportado!*\n\n` +
+                   `📊 Total de usuários: ${data.statistics.totalUsers}\n` +
+                   `📝 Total de logins: ${data.statistics.totalLogins}\n` +
+                   `📅 Data da exportação: ${new Date(data.exportedAt).toLocaleString('pt-BR')}`,
+          parse_mode: 'Markdown'
+        });
+
+        // Limpar arquivo após enviar
+        setTimeout(() => {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (e) {}
+        }, 2000);
+      } catch (error) {
+        this.bot.sendMessage(chatId, `${emoji} Erro ao exportar: ${error.message}`);
+      }
+    });
+
+    // 🔍 Comando /procurar-email - Buscar usuário por email
+    this.bot.onText(/\/procurar-email (.+)/, (msg, match) => {
+      const chatId = msg.chat.id;
+      const email = match[1].trim();
+      const emoji = '🔍';
+
+      const allUsers = getAllUsers();
+      const user = allUsers.find(u => u.email === email);
+
+      if (!user) {
+        this.bot.sendMessage(chatId, 
+          `${emoji} *Email não encontrado no sistema*\n\n` +
+          `Email procurado: \`${email}\``
+        );
+        return;
+      }
+
+      this.bot.sendMessage(chatId, 
+        `${emoji} *Usuário Encontrado!*\n\n` +
+        `👤 Nome: *${user.name}*\n` +
+        `📧 Email: *${user.email}*\n` +
+        `🆔 Chat ID: ${user.chat_id}\n` +
+        `📊 Logins: ${user.login_count}\n` +
+        `✅ Status: ${user.status}\n` +
+        `📅 Registro: ${new Date(user.created_at).toLocaleString('pt-BR')}\n` +
+        `🕐 Último Login: ${new Date(user.last_login).toLocaleString('pt-BR')}`,
         { parse_mode: 'Markdown' }
       );
     });

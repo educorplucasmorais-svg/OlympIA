@@ -1,0 +1,82 @@
+{
+  "reportDate": "2026-01-28T07:03:39.536Z",
+  "period": {
+    "days": 30,
+    "startDate": "2025-12-29T07:03:39.536Z",
+    "endDate": "2026-01-28T07:03:39.536Z"
+  },
+  "overview": {
+    "totalUsers": 3,
+    "totalCommands": 13,
+    "successRate": "100.00%",
+    "averageCommandsPerUser": "4.33"
+  },
+  "topCommands": [
+    {
+      "command_name": "/gerar",
+      "uses": 4,
+      "avg_time": 1242.5
+    },
+    {
+      "command_name": "/conhecimento",
+      "uses": 2,
+      "avg_time": 2225
+    },
+    {
+      "command_name": "/marketing",
+      "uses": 2,
+      "avg_time": 2075
+    },
+    {
+      "command_name": "/chat",
+      "uses": 1,
+      "avg_time": 450
+    },
+    {
+      "command_name": "/email",
+      "uses": 1,
+      "avg_time": 1800
+    },
+    {
+      "command_name": "/imagem",
+      "uses": 1,
+      "avg_time": 3450
+    },
+    {
+      "command_name": "/pdf",
+      "uses": 1,
+      "avg_time": 890
+    },
+    {
+      "command_name": "/promocao",
+      "uses": 1,
+      "avg_time": 2700
+    }
+  ],
+  "topUsers": [
+    {
+      "name": "João Silva",
+      "email": "joao@example.com",
+      "command_count": 5,
+      "unique_commands": 4
+    },
+    {
+      "name": "Maria Santos",
+      "email": "maria@example.com",
+      "command_count": 5,
+      "unique_commands": 4
+    },
+    {
+      "name": "Pedro Oliveira",
+      "email": "pedro@example.com",
+      "command_count": 3,
+      "unique_commands": 3
+    }
+  ],
+  "commandsByHour": [
+    {
+      "hour": "07",
+      "count": 13
+    }
+  ]
+}

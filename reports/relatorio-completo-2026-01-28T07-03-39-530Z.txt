@@ -1,0 +1,55 @@
+
+╔════════════════════════════════════════╗
+║    RELATÓRIO COMPLETO DE ATIVIDADES    ║
+╚════════════════════════════════════════╝
+
+📅 PERÍODO: 30 dias
+📆 Data do Relatório: 28/01/2026, 04:03:39
+
+────────────────────────────────────────
+📊 VISÃO GERAL
+────────────────────────────────────────
+👥 Usuários Ativos: 3
+⚡ Total de Comandos: 13
+✅ Taxa de Sucesso: 100.00%
+📈 Média de Comandos por Usuário: 4.33
+
+────────────────────────────────────────
+🔥 TOP 10 COMANDOS MAIS UTILIZADOS
+────────────────────────────────────────
+    
+1. /gerar
+   └─ Usos: 4 | ⏱️ Tempo médio: 1242.50ms
+2. /conhecimento
+   └─ Usos: 2 | ⏱️ Tempo médio: 2225.00ms
+3. /marketing
+   └─ Usos: 2 | ⏱️ Tempo médio: 2075.00ms
+4. /chat
+   └─ Usos: 1 | ⏱️ Tempo médio: 450.00ms
+5. /email
+   └─ Usos: 1 | ⏱️ Tempo médio: 1800.00ms
+6. /imagem
+   └─ Usos: 1 | ⏱️ Tempo médio: 3450.00ms
+7. /pdf
+   └─ Usos: 1 | ⏱️ Tempo médio: 890.00ms
+8. /promocao
+   └─ Usos: 1 | ⏱️ Tempo médio: 2700.00ms
+
+────────────────────────────────────────
+👨‍💻 TOP 10 USUÁRIOS MAIS ATIVOS
+────────────────────────────────────────
+    
+1. João Silva (joao@example.com)
+   └─ Comandos: 5 | Tipos: 4
+2. Maria Santos (maria@example.com)
+   └─ Comandos: 5 | Tipos: 4
+3. Pedro Oliveira (pedro@example.com)
+   └─ Comandos: 3 | Tipos: 3
+
+────────────────────────────────────────
+📈 DISTRIBUIÇÃO POR HORA DO DIA
+────────────────────────────────────────
+    
+07h: ██ (13)
+
+════════════════════════════════════════
