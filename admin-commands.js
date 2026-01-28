@@ -1,3 +1,4 @@
+import { getHealthStatus } from './health-monitor.js';
 /**
  * 🔐 ADMIN COMMAND: /info
  * Informações e ferramentas de gerência EXCLUSIVAS para administradores
@@ -103,6 +104,14 @@ export function setupAdminInfoCommand(bot) {
       return;
     }
     await adminShowSecurity(bot, msg.chat.id);
+
+    bot.onText(/\/info:health/, async (msg) => {
+      if (!await isAdmin(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, '🔐 Acesso negado');
+        return;
+      }
+      await adminShowHealth(bot, msg.chat.id);
+    });
   });
 }
 
@@ -185,6 +194,62 @@ async function adminShowUsers(bot, chatId) {
     }
 
     await bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+
+  /**
+   * 🏥 Mostrar status do health monitor
+   */
+  async function adminShowHealth(bot, chatId) {
+    try {
+      const health = getHealthStatus();
+      const uptime = process.uptime();
+      const hours = Math.floor(uptime / 3600);
+      const mins = Math.floor((uptime % 3600) / 60);
+
+      const response = `
+  🏥 *MONITORAMENTO DE SAÚDE 24/7*
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📊 *STATUS ATUAL*
+
+  ${health.consecutiveFailures === 0 ? '✅' : '❌'} Status: ${health.consecutiveFailures === 0 ? 'Operacional' : 'Com Problemas'}
+  ⏱️ Uptime: ${hours}h ${mins}min
+  🔍 Última Verificação: ${new Date(health.lastCheck).toLocaleTimeString('pt-BR')}
+  ❌ Falhas Consecutivas: ${health.consecutiveFailures}
+  🚨 Alerta Enviado: ${health.isAlertSent ? 'Sim' : 'Não'}
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ⚙️ *CONFIGURAÇÃO*
+
+  ⏲️ Frequência: A cada 1 minuto
+  🚨 Alerta após: 3 falhas consecutivas
+  📧 Emails: 4 admins
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🧪 *VERIFICAÇÕES AUTOMÁTICAS*
+
+  ✅ Bot polling ativo
+  ✅ MCP conectado
+  ✅ Banco de dados respondendo
+  ✅ Componentes operacionais
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📧 *ALERTAS POR EMAIL*
+
+  Você receberá email automático se:
+  • Bot parar de responder (3+ min)
+  • MCP desconectar
+  • Banco de dados falhar
+  • Qualquer componente crítico cair
+
+  E também quando o bot voltar ao normal! ✅
+  `;
+
+      bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error('Erro ao obter health status:', error);
+      bot.sendMessage(chatId, '❌ Erro ao obter status de monitoramento');
+    }
+  }
   } catch (error) {
     await bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
   }

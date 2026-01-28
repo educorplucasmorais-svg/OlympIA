@@ -44,6 +44,9 @@ import { setupAdminInfoCommand } from './admin-commands.js';
 import { initializeDailyReportSchedule, generateReportOnDemand } from './daily-report.js';
 import adminSecurity from './admin-security.js';
 
+// 🏥 MONITORAMENTO - Health Check 24/7
+import { startHealthMonitoring, getHealthStatus } from './health-monitor.js';
+
 // Carregar variáveis de ambiente
 dotenv.config();
 
@@ -1452,17 +1455,12 @@ Se você inverte, ninguém mais confia em você.
 
     // Mensagens gerais (sem comando) - Chat Humanizado
     this.bot.on('message', async (msg) => {
-      // Ignora se for um comando
-      if (msg.text && msg.text.startsWith('/')) {
-        return;
-      }
-
       const chatId = msg.chat.id;
       const text = msg.text;
 
       if (!text) return;
 
-      // Verificar se é processo de registro
+      // PRIMEIRO: Verificar se é processo de registro (ANTES de ignorar comandos)
       if (this.userRegistration[chatId]) {
         const regData = this.userRegistration[chatId];
         
@@ -1509,6 +1507,11 @@ Se você inverte, ninguém mais confia em você.
           }
           return;
         }
+      }
+
+      // DEPOIS: Ignora se for um comando
+      if (text.startsWith('/')) {
+        return;
       }
 
       // Chat humanizado padrão
@@ -2037,6 +2040,10 @@ Se você inverte, ninguém mais confia em você.
   }
 
   async start() {
+    
+      // Iniciar monitoramento de saúde (verifica a cada 1 minuto)
+      startHealthMonitoring(this.bot);
+    
     await this.connectMCP();
     console.log('✅ ⚡ OlympIA está rodando!');
     console.log('📱 Envie /start no seu bot do Telegram para começar');
