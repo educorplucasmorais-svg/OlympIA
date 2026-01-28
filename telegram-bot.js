@@ -594,6 +594,19 @@ class TelegramOlympIA {
     });
 
     // 16️⃣ Comando /ocr - Extrair Texto de Imagens
+    this.bot.onText(/\/ocr/, async (msg) => {
+      const chatId = msg.chat.id;
+      
+      await this.bot.sendMessage(chatId, 
+        '📸 *OCR - Extração de Texto de Imagens*\n\n' +
+        'Para extrair texto de uma imagem, simplesmente *envie a foto*.\n\n' +
+        'O bot irá extrair todo o texto visível na imagem automaticamente.\n\n' +
+        '💡 Dica: Funciona melhor com imagens claras e texto legível.',
+        { parse_mode: 'Markdown' }
+      );
+    });
+
+    // Processamento automático de fotos para OCR
     this.bot.on('photo', async (msg) => {
       const chatId = msg.chat.id;
       const photoId = msg.photo[msg.photo.length - 1].file_id;
@@ -607,15 +620,22 @@ class TelegramOlympIA {
         const fileInfo = await this.bot.getFile(photoId);
         const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_TOKEN}/${fileInfo.file_path}`;
         const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-        const imagePath = `/tmp/ocr_${Date.now()}.jpg`;
+        
+        // Usar caminho correto para o SO
+        const tmpDir = process.platform === 'win32' ? process.env.TEMP || '.\\temp' : '/tmp';
+        const imagePath = path.join(tmpDir, `ocr_${Date.now()}.jpg`);
+        
         fs.writeFileSync(imagePath, response.data);
 
         const worker = await createWorker('por');
         const { data: { text } } = await worker.recognize(imagePath);
         await worker.terminate();
 
-        await this.bot.sendMessage(chatId, `📖 Texto extraído:\n\n${text || 'Nenhum texto encontrado'}`);
-        fs.unlinkSync(imagePath);
+        await this.bot.sendMessage(chatId, `📖 *Texto extraído:*\n\n${text || 'Nenhum texto encontrado'}`, { parse_mode: 'Markdown' });
+        
+        try {
+          fs.unlinkSync(imagePath);
+        } catch (e) {}
       } catch (error) {
         await this.bot.sendMessage(chatId, `❌ Erro OCR: ${error.message}`);
       }
