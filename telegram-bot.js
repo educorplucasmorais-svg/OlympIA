@@ -20,7 +20,12 @@ import {
   getAllUsers, 
   getUserStats,
   exportDatabaseAsJSON,
-  getUserLoginHistory
+  getUserLoginHistory,
+  registerInteractionLog,
+  getUserInteractionLogs,
+  getAllInteractionLogs,
+  getUserUsageStats,
+  getBehaviorAnalysis
 } from './database.js';
 
 // 🚀 OTIMIZAÇÕES - Performance e Proteção
@@ -52,7 +57,7 @@ import ConversationManager from './conversation-manager.js';
 dotenv.config();
 
 // ⚠️ CONFIGURAÇÃO VIA .env FILE (MAIS SEGURO)
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_TOKEN_HERE';
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8426049953:AAEuswuXhwEp-JUJNNYNwos8qd69Df4egeI';
 const ADMIN_CHAT_IDS = (process.env.ADMIN_CHAT_IDS || '')
   .split(',')
   .map((id) => parseInt(id.trim(), 10))
@@ -147,6 +152,163 @@ class TelegramOlympIA {
     initializeDatabase();
     
     this.setupBot();
+    this.setupInteractionLogging();
+    this.setupConnectionRecovery();
+  }
+
+  /**
+   * CONFIGURAR RECUPERAÇÃO DE CONEXÃO PARA EVITAR ERROS 409
+   */
+  setupConnectionRecovery() {
+    // Handler para erros de polling
+    this.bot.on('polling_error', (error) => {
+      console.log('🔄 Polling error detectado:', error.code, error.message);
+
+      if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
+        console.log('⚠️ Conflito de polling detectado. Tentando reconectar...');
+
+        // Parar polling atual
+        this.bot.stopPolling();
+
+        // Aguardar um pouco e reconectar
+        setTimeout(() => {
+          console.log('🔄 Tentando reconectar...');
+          this.bot.startPolling();
+        }, 5000);
+      }
+    });
+
+    // Handler para desconexões
+    this.bot.on('webhook_error', (error) => {
+      console.log('🔄 Webhook error:', error.message);
+    });
+
+    // Ping periódico para manter conexão ativa
+    setInterval(() => {
+      try {
+        // Pequeno teste de conectividade
+        this.bot.getMe().catch(err => {
+          console.log('⚠️ Erro no teste de conectividade:', err.message);
+        });
+      } catch (error) {
+        console.log('⚠️ Erro no ping de conectividade');
+      }
+    }, 300000); // A cada 5 minutos
+  }
+
+  /**
+   * CONFIGURAR LOGGING DE INTERAÇÕES COMPLETAS
+   */
+  setupInteractionLogging() {
+    // Middleware para interceptar TODAS as mensagens
+    this.bot.on('message', async (msg) => {
+      const startTime = Date.now();
+      const chatId = msg.chat.id;
+      const user = getUserByChatId(chatId);
+
+      if (!user) return; // Usuário não cadastrado, não logar
+
+      try {
+        // Determinar tipo de mensagem
+        let messageType = 'text';
+        let content = msg.text || '';
+        let commandName = null;
+        let hasMedia = false;
+        let mediaType = null;
+
+        if (msg.photo) {
+          messageType = 'photo';
+          hasMedia = true;
+          mediaType = 'photo';
+          content = '[Foto enviada]';
+        } else if (msg.document) {
+          messageType = 'document';
+          hasMedia = true;
+          mediaType = msg.document.mime_type || 'document';
+          content = `[Documento: ${msg.document.file_name}]`;
+        } else if (msg.sticker) {
+          messageType = 'sticker';
+          hasMedia = true;
+          mediaType = 'sticker';
+          content = '[Sticker]';
+        } else if (msg.voice) {
+          messageType = 'voice';
+          hasMedia = true;
+          mediaType = 'voice';
+          content = '[Mensagem de voz]';
+        } else if (msg.video) {
+          messageType = 'video';
+          hasMedia = true;
+          mediaType = 'video';
+          content = '[Vídeo]';
+        } else if (msg.audio) {
+          messageType = 'audio';
+          hasMedia = true;
+          mediaType = 'audio';
+          content = `[Áudio: ${msg.audio.title || 'Sem título'}]`;
+        } else if (content.startsWith('/')) {
+          messageType = 'command';
+          commandName = content.split(' ')[0].substring(1); // Extrair nome do comando
+        }
+
+        // Verificar se está em conversa
+        const inConversation = this.conversations.isInConversation(chatId);
+        let conversationContext = null;
+        if (inConversation) {
+          const conv = this.conversations.getConversation(chatId);
+          conversationContext = conv ? conv.currentStep : null;
+        }
+
+        // Registrar a interação
+        const interactionData = {
+          userId: user.id,
+          chatId: chatId,
+          messageType: messageType,
+          content: content,
+          commandName: commandName,
+          inConversation: inConversation,
+          conversationContext: conversationContext,
+          messageLength: content.length,
+          hasMedia: hasMedia,
+          mediaType: mediaType,
+          userAgent: msg.from ? `Telegram User ${msg.from.id}` : null
+        };
+
+        // Registrar log (faremos update do response_time depois)
+        registerInteractionLog(interactionData);
+
+      } catch (error) {
+        console.error('Erro ao registrar log de interação:', error);
+      }
+    });
+
+    // Middleware para atualizar tempo de resposta após envio de mensagens
+    const originalSendMessage = this.bot.sendMessage;
+    this.bot.sendMessage = async function(chatId, text, options) {
+      const responseStart = Date.now();
+      try {
+        const result = await originalSendMessage.call(this, chatId, text, options);
+        const responseTime = Date.now() - responseStart;
+
+        // Atualizar o último log de interação com o tempo de resposta
+        // (Isso é uma simplificação - em produção seria melhor ter um ID de transação)
+        return result;
+      } catch (error) {
+        // Registrar erro na interação
+        const user = getUserByChatId(chatId);
+        if (user) {
+          registerInteractionLog({
+            userId: user.id,
+            chatId: chatId,
+            messageType: 'system_response',
+            content: '[Erro na resposta]',
+            status: 'error',
+            errorDetails: error.message
+          });
+        }
+        throw error;
+      }
+    };
   }
 
   async connectMCP() {
@@ -156,53 +318,78 @@ class TelegramOlympIA {
     }
 
     try {
-      const transport = new StdioClientTransport({
-        command: 'node',
-        args: ['index.js']
-      });
+      console.log('🔄 Tentando conectar ao MCP Server...');
 
-      this.mcpClient = new Client({
-        name: 'telegram-olympia-client',
-        version: '1.0.0'
-      }, {
-        capabilities: {}
-      });
+      // Timeout de 10 segundos para evitar travamento
+      const connectionPromise = new Promise(async (resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('MCP connection timeout after 10s'));
+        }, 10000);
 
-      await this.mcpClient.connect(transport);
-      
-      // ✨ Inicializar connection pool para reusar
-      if (OPTIMIZATION_FLAGS.enableMCPPool) {
-        this.mcpPool = initMCPPool(async () => {
-          const newTransport = new StdioClientTransport({
+        try {
+          const transport = new StdioClientTransport({
             command: 'node',
             args: ['index.js']
           });
 
-          const client = new Client({
+          this.mcpClient = new Client({
             name: 'telegram-olympia-client',
             version: '1.0.0'
           }, {
             capabilities: {}
           });
 
-          await client.connect(newTransport);
-          return client;
-        });
-      }
+          await this.mcpClient.connect(transport);
+          clearTimeout(timeout);
 
-      console.log('✅ Conectado ao OlympIA MCP Server');
-      if (OPTIMIZATION_FLAGS.enableMCPPool) {
-        console.log('✅ Connection Pool MCP inicializado - conexões serão reutilizadas');
-      }
+          // ✨ Inicializar connection pool para reusar
+          if (OPTIMIZATION_FLAGS.enableMCPPool) {
+            this.mcpPool = initMCPPool(async () => {
+              const newTransport = new StdioClientTransport({
+                command: 'node',
+                args: ['index.js']
+              });
+
+              const client = new Client({
+                name: 'telegram-olympia-client',
+                version: '1.0.0'
+              }, {
+                capabilities: {}
+              });
+
+              await client.connect(newTransport);
+              return client;
+            });
+          }
+
+          console.log('✅ Conectado ao OlympIA MCP Server');
+          if (OPTIMIZATION_FLAGS.enableMCPPool) {
+            console.log('✅ Connection Pool MCP inicializado - conexões serão reutilizadas');
+          }
+          resolve(true);
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      });
+
+      await connectionPromise;
       return true;
+
     } catch (error) {
-      console.error('❌ Erro ao conectar com MCP:', error.message);
+      console.log('⚠️ MCP Server não disponível:', error.message);
+      console.log('🔄 Continuando sem MCP - funcionalidades limitadas');
+
+      // Bot continua funcionando mesmo sem MCP
+      this.mcpClient = null;
+      this.mcpPool = null;
+
       return false;
     }
   }
 
   // Variável para armazenar comandos hot (atualizada às 05:00)
-  hotCommands = [];
+  hotCommands = HOT_COMMANDS.map(cmd => cmd.name);
 
   async setupBot() {
     // Comando /start - Sem sistema de login
@@ -320,14 +507,17 @@ class TelegramOlympIA {
       await this.bot.sendMessage(chatId,
         `👑 *Olá ${userName}! Acesso Admin*\n\n` +
         '*Painel Administrativo:*\n' +
-        '📊 `/info` - Painel completo de gerência\n\n' +
+        '📊 `/info` - Painel completo de gerência\n' +
+        '📋 `/relatorio` - Gerar relatórios\n' +
+        '📁 `/relatorios` - Listar relatórios salvos\n\n' +
         '*Comandos Disponíveis:*\n\n' +
         '✨ *Criatividade com IA*\n' +
         `• ${hot('/gerar')}💡 \`/gerar\` - Criar ideias geniais\n` +
         `• ${hot('/analisar')}🔍 \`/analisar\` - Análise profunda\n` +
         `• ${hot('/keywords')}🎯 \`/keywords\` - Palavras-chave\n` +
         `• ${hot('/imagem')}🎭 \`/imagem\` - Gerar imagens\n` +
-        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n\n` +
+        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n` +
+        `• ${hot('/skills')}🎯 \`/skills\` - Ver todas as skills\n\n` +
         '🛠️ *Ferramentas*\n' +
         `• ${hot('/traduzir')}🌍 \`/traduzir\` - Tradução\n` +
         `• ${hot('/senha')}🔐 \`/senha\` - Gerar senha\n` +
@@ -344,7 +534,17 @@ class TelegramOlympIA {
         `• ${hot('/kb:stats')}📈 \`/kb:stats\` - Estatísticas\n\n` +
         '🎯 *Marketing*\n' +
         `• ${hot('/marketing')}📊 \`/marketing\` - Estratégias\n` +
-        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n\n` +
+        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n` +
+        `• ${hot('/social')}👥 \`/social\` - Redes sociais\n` +
+        `• ${hot('/vip')}👑 \`/vip\` - Recursos premium\n\n` +
+        '🏠 *Casa Inteligente*\n' +
+        `• ${hot('/casa')}💡 \`/casa\` - Automação residencial\n\n` +
+        '⭐ *Favoritos*\n' +
+        `• ${hot('/favoritos')}💖 \`/favoritos\` - Seus comandos favoritos\n\n` +
+        '📋 *Menus Rápidos*\n' +
+        `• ${hot('/ia')}🤖 \`/ia\` - Menu IA completo\n` +
+        `• ${hot('/utilidades')}🛠️ \`/utilidades\` - Menu ferramentas\n` +
+        `• ${hot('/ajuda')}🤝 \`/ajuda\` - Central de ajuda\n\n` +
         '💡 *Ou escreva qualquer coisa para conversar!*',
         { parse_mode: 'Markdown' }
       );
@@ -362,7 +562,8 @@ class TelegramOlympIA {
         `• ${hot('/analisar')}🔍 \`/analisar\` - Análise profunda\n` +
         `• ${hot('/keywords')}🎯 \`/keywords\` - Palavras-chave\n` +
         `• ${hot('/imagem')}🎭 \`/imagem\` - Gerar imagens\n` +
-        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n\n` +
+        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n` +
+        `• ${hot('/skills')}🎯 \`/skills\` - Ver todas as skills\n\n` +
         '🛠️ *Ferramentas*\n' +
         `• ${hot('/traduzir')}🌍 \`/traduzir\` - Tradução\n` +
         `• ${hot('/senha')}🔐 \`/senha\` - Gerar senha\n` +
@@ -379,7 +580,17 @@ class TelegramOlympIA {
         `• ${hot('/kb:stats')}📈 \`/kb:stats\` - Estatísticas\n\n` +
         '🎯 *Marketing*\n' +
         `• ${hot('/marketing')}📊 \`/marketing\` - Estratégias\n` +
-        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n\n` +
+        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n` +
+        `• ${hot('/social')}👥 \`/social\` - Redes sociais\n` +
+        `• ${hot('/vip')}👑 \`/vip\` - Recursos premium\n\n` +
+        '🏠 *Casa Inteligente*\n' +
+        `• ${hot('/casa')}💡 \`/casa\` - Automação residencial\n\n` +
+        '⭐ *Favoritos*\n' +
+        `• ${hot('/favoritos')}💖 \`/favoritos\` - Seus comandos favoritos\n\n` +
+        '📋 *Menus Rápidos*\n' +
+        `• ${hot('/ia')}🤖 \`/ia\` - Menu IA completo\n` +
+        `• ${hot('/utilidades')}🛠️ \`/utilidades\` - Menu ferramentas\n` +
+        `• ${hot('/ajuda')}🤝 \`/ajuda\` - Central de ajuda\n\n` +
         '💡 *Ou escreva qualquer coisa para conversar!*',
         { parse_mode: 'Markdown' }
       );
@@ -1328,7 +1539,7 @@ Se você inverte, ninguém mais confia em você.
           `${emoji} *Ops! Algo deu errado no meu estúdio de pintura...*\n\n❌ ${error.message}\n\n` +
           `💡 *Tenta de novo com uma descrição diferente?*\n` +
           `Ex: "Um gato usando óculos de sol em Marte"`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'Markdown' }    
         );
       }
     });
@@ -1625,16 +1836,42 @@ Se você inverte, ninguém mais confia em você.
           await this.connectMCP();
         }
 
-        // Timeout de 30 segundos para respostas
+        // Timeout aumentado para respostas mais substanciais (60 segundos)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout: Resposta demorou mais de 30s')), 30000);
+          setTimeout(() => reject(new Error('Timeout: Resposta demorou mais de 60s')), 60000);
         });
 
-        // Prompt para respostas curtas e humanizadas
-        let prompt = `Você é OlympIA, uma assistente virtual amigável e prestativa. ` +
-          `Responda de forma CURTA (máximo 3 linhas), humanizada e natural. ` +
-          `Se identificar que o usuário precisa de um comando específico, sugira de forma sutil. ` +
-          `\n\nUsuário: ${text}`;
+        // Prompt aprimorado para respostas substanciais e inteligentes
+        let prompt = `Você é OlympIA, uma assistente virtual avançada e altamente inteligente, similar ao GPT-4 ou Gemini.
+
+PERSONALIDADE:
+- Amigável, prestativa e muito inteligente
+- Respostas são sempre SUBSTANCIAIS e INFORMATIVAS
+- Fornece CONTEÚDO DE VALOR REAL em cada resposta
+- Usa conhecimento amplo e atualizado
+- Estrutura respostas de forma clara e organizada
+
+REGRAS DE RESPOSTA:
+- NÃO limite a 3 linhas - forneça respostas COMPLETAS quando necessário
+- Seja DIRETO AO PONTO mas COMPREENSIVO
+- Use formatação Markdown quando apropriado (negrito, itálico, listas)
+- Para perguntas complexas: estruture em seções com títulos
+- Para explicações: seja detalhado mas claro
+- Sempre termine com algo ÚTIL (dica, sugestão, pergunta de follow-up)
+
+COMANDOS DISPONÍVEIS (sugira quando relevante):
+- /google - Pesquisa na web
+- /traduzir - Tradução de idiomas
+- /imagem - Geração de imagens
+- /gerar - Criação de conteúdo
+- /analisar - Análise de texto/imagem
+- /conversar - Diálogo estruturado
+
+CONTEXTO DO USUÁRIO: ${text}
+
+INSTRUÇÃO: Forneça uma resposta inteligente, útil e completa. Não seja superficial.`;
+
+        // Sistema de detecção para sugerir comandos (mantém funcionalidade)
         
         // Sistema de detecção para sugerir comandos
         let sugestao = '';
@@ -1672,13 +1909,36 @@ Se você inverte, ninguém mais confia em você.
         } catch {}
         
         if (error.message.includes('Timeout')) {
-          await this.bot.sendMessage(chatId, 
-            '⏱️ *Ops! Demorei demais...*\n\n' +
-            'A resposta está demorando mais que o esperado. Tente novamente ou use um comando específico! 😊',
+          await this.bot.sendMessage(chatId,
+            '⏱️ *Resposta demorando...*\n\n' +
+            'Estou processando sua solicitação, mas está demorando mais que o esperado.\n\n' +
+            '💡 *Alternativas:*\n' +
+            '• Use `/google` para pesquisar\n' +
+            '• Tente reformular sua pergunta\n' +
+            '• Use comandos específicos como `/traduzir` ou `/analisar`\n\n' +
+            'Tente novamente em alguns segundos! 🚀',
+            { parse_mode: 'Markdown' }
+          );
+        } else if (error.message.includes('MCP') || error.message.includes('connection')) {
+          await this.bot.sendMessage(chatId,
+            '🔧 *Sistema temporariamente indisponível*\n\n' +
+            'Estou com dificuldades técnicas no momento, mas posso ajudar com:\n\n' +
+            '📋 *Comandos disponíveis:*\n' +
+            '• `/google` - Pesquisa na web\n' +
+            '• `/traduzir` - Tradução de idiomas\n' +
+            '• `/imagem` - Geração de imagens\n' +
+            '• `/relatorio` - Relatórios do sistema\n' +
+            '• `/meus-dados` - Seus dados cadastrados\n\n' +
+            'Volto em breve com respostas completas! 🤖',
             { parse_mode: 'Markdown' }
           );
         } else {
-          await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+          await this.bot.sendMessage(chatId,
+            '❌ *Erro inesperado*\n\n' +
+            'Ocorreu um problema técnico. Tente novamente ou use um comando específico.\n\n' +
+            'Se o problema persistir, contate o administrador.',
+            { parse_mode: 'Markdown' }
+          );
         }
       }
     });
@@ -2124,11 +2384,16 @@ Se você inverte, ninguém mais confia em você.
   }
 
   async start() {
-    
+
       // Iniciar monitoramento de saúde (verifica a cada 1 minuto)
       startHealthMonitoring(this.bot);
-    
-    await this.connectMCP();
+
+    try {
+      await this.connectMCP();
+    } catch (error) {
+      console.log('⚠️ Bot iniciando sem MCP devido a erro:', error.message);
+    }
+
     console.log('✅ ⚡ OlympIA está rodando!');
     console.log('📱 Envie /start no seu bot do Telegram para começar');
   }

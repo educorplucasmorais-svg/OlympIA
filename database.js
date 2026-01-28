@@ -73,6 +73,51 @@ export function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_command_status ON user_commands(status);
     `);
 
+    // Tabela de logs completos de interações (comandos + mensagens)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS interaction_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        chat_id INTEGER NOT NULL,
+        message_type TEXT NOT NULL, -- 'command', 'text', 'photo', 'document', 'sticker', etc.
+        content TEXT, -- conteúdo da mensagem ou comando
+        command_name TEXT, -- nome do comando (se for comando)
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        response_time_ms INTEGER, -- tempo de resposta do bot
+        status TEXT DEFAULT 'success', -- 'success', 'error', 'timeout'
+        in_conversation BOOLEAN DEFAULT 0, -- se estava em uma conversa ativa
+        conversation_context TEXT, -- contexto da conversa se aplicável
+        message_length INTEGER, -- tamanho da mensagem em caracteres
+        has_media BOOLEAN DEFAULT 0, -- se contém mídia
+        media_type TEXT, -- tipo de mídia se aplicável
+        user_agent TEXT, -- informações do cliente Telegram
+        error_details TEXT, -- detalhes do erro se houve
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_interaction_user_id ON interaction_logs(user_id);
+      CREATE INDEX IF NOT EXISTS idx_interaction_type ON interaction_logs(message_type);
+      CREATE INDEX IF NOT EXISTS idx_interaction_timestamp ON interaction_logs(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_interaction_command ON interaction_logs(command_name);
+      CREATE INDEX IF NOT EXISTS idx_interaction_status ON interaction_logs(status);
+    `);
+
+    // Tabela de relatórios diários
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS daily_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        report_date TEXT NOT NULL,
+        report_subject TEXT,
+        pdf_data BLOB,
+        html_data TEXT,
+        email_sent BOOLEAN DEFAULT 0,
+        email_error TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_report_date ON daily_reports(report_date);
+    `);
+
     console.log('✅ Banco de dados inicializado com sucesso!');
     return true;
   } catch (error) {
@@ -285,6 +330,251 @@ export function getUserLoginHistory(userId, limit = 10) {
   } catch (error) {
     console.error('Erro ao obter histórico de login:', error);
     return [];
+  }
+}
+
+/**
+ * LISTAR TODOS OS LOGS DE ACESSO (ADMIN)
+ */
+export function getAllLoginLogs(limit = 50) {
+  try {
+    const stmt = db.prepare(`
+      SELECT 
+        ll.*,
+        u.name as user_name,
+        u.email as user_email
+      FROM login_logs ll
+      LEFT JOIN users u ON ll.user_id = u.id
+      ORDER BY ll.login_time DESC 
+      LIMIT ?
+    `);
+    
+    return stmt.all(limit);
+  } catch (error) {
+    console.error('Erro ao obter todos os logs de login:', error);
+    return [];
+  }
+}
+
+/**
+ * REGISTRAR LOG DE INTERAÇÃO COMPLETA
+ */
+export function registerInteractionLog(interactionData) {
+  try {
+    const {
+      userId,
+      chatId,
+      messageType,
+      content,
+      commandName = null,
+      responseTimeMs = null,
+      status = 'success',
+      inConversation = false,
+      conversationContext = null,
+      messageLength = 0,
+      hasMedia = false,
+      mediaType = null,
+      userAgent = null,
+      errorDetails = null
+    } = interactionData;
+
+    const stmt = db.prepare(`
+      INSERT INTO interaction_logs (
+        user_id, chat_id, message_type, content, command_name,
+        response_time_ms, status, in_conversation, conversation_context,
+        message_length, has_media, media_type, user_agent, error_details
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      userId, chatId, messageType, content, commandName,
+      responseTimeMs, status, inConversation ? 1 : 0, conversationContext,
+      messageLength, hasMedia ? 1 : 0, mediaType, userAgent, errorDetails
+    );
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao registrar log de interação:', error);
+    return false;
+  }
+}
+
+/**
+ * OBTER LOGS DE INTERAÇÃO DE UM USUÁRIO
+ */
+export function getUserInteractionLogs(userId, limit = 50) {
+  try {
+    const stmt = db.prepare(`
+      SELECT * FROM interaction_logs
+      WHERE user_id = ?
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+
+    return stmt.all(userId, limit);
+  } catch (error) {
+    console.error('Erro ao obter logs de interação do usuário:', error);
+    return [];
+  }
+}
+
+/**
+ * OBTER TODOS OS LOGS DE INTERAÇÃO
+ */
+export function getAllInteractionLogs(limit = 100) {
+  try {
+    const stmt = db.prepare(`
+      SELECT
+        il.*,
+        u.name as user_name,
+        u.email as user_email
+      FROM interaction_logs il
+      LEFT JOIN users u ON il.user_id = u.id
+      ORDER BY il.timestamp DESC
+      LIMIT ?
+    `);
+
+    return stmt.all(limit);
+  } catch (error) {
+    console.error('Erro ao obter todos os logs de interação:', error);
+    return [];
+  }
+}
+
+/**
+ * OBTER ESTATÍSTICAS DE USO POR USUÁRIO
+ */
+export function getUserUsageStats(userId) {
+  try {
+    // Estatísticas gerais
+    const generalStats = db.prepare(`
+      SELECT
+        COUNT(*) as total_interactions,
+        COUNT(CASE WHEN message_type = 'command' THEN 1 END) as total_commands,
+        COUNT(CASE WHEN message_type = 'text' THEN 1 END) as total_messages,
+        COUNT(CASE WHEN status = 'error' THEN 1 END) as total_errors,
+        AVG(response_time_ms) as avg_response_time,
+        MIN(timestamp) as first_interaction,
+        MAX(timestamp) as last_interaction
+      FROM interaction_logs
+      WHERE user_id = ?
+    `).get(userId);
+
+    // Top comandos usados
+    const topCommands = db.prepare(`
+      SELECT
+        command_name,
+        COUNT(*) as usage_count,
+        AVG(response_time_ms) as avg_response_time
+      FROM interaction_logs
+      WHERE user_id = ? AND command_name IS NOT NULL
+      GROUP BY command_name
+      ORDER BY usage_count DESC
+      LIMIT 10
+    `).all(userId);
+
+    // Padrão horário de uso
+    const hourlyPattern = db.prepare(`
+      SELECT
+        strftime('%H', timestamp) as hour,
+        COUNT(*) as interactions_count
+      FROM interaction_logs
+      WHERE user_id = ?
+      GROUP BY hour
+      ORDER BY hour
+    `).all(userId);
+
+    // Padrão semanal
+    const weeklyPattern = db.prepare(`
+      SELECT
+        strftime('%w', timestamp) as day_of_week,
+        COUNT(*) as interactions_count
+      FROM interaction_logs
+      WHERE user_id = ?
+      GROUP BY day_of_week
+      ORDER BY day_of_week
+    `).all(userId);
+
+    return {
+      general: generalStats,
+      topCommands,
+      hourlyPattern,
+      weeklyPattern
+    };
+  } catch (error) {
+    console.error('Erro ao obter estatísticas de uso do usuário:', error);
+    return null;
+  }
+}
+
+/**
+ * OBTER ANÁLISE DE COMPORTAMENTO GERAL
+ */
+export function getBehaviorAnalysis() {
+  try {
+    const analysis = {};
+
+    // Top usuários por atividade
+    analysis.topUsers = db.prepare(`
+      SELECT
+        u.name as user_name,
+        u.email,
+        COUNT(il.id) as total_interactions,
+        COUNT(CASE WHEN il.message_type = 'command' THEN 1 END) as commands_used,
+        AVG(il.response_time_ms) as avg_response_time,
+        MAX(il.timestamp) as last_activity
+      FROM interaction_logs il
+      LEFT JOIN users u ON il.user_id = u.id
+      GROUP BY il.user_id
+      ORDER BY total_interactions DESC
+      LIMIT 20
+    `).all();
+
+    // Top comandos globalmente
+    analysis.topCommands = db.prepare(`
+      SELECT
+        command_name,
+        COUNT(*) as usage_count,
+        COUNT(DISTINCT user_id) as unique_users,
+        AVG(response_time_ms) as avg_response_time
+      FROM interaction_logs
+      WHERE command_name IS NOT NULL
+      GROUP BY command_name
+      ORDER BY usage_count DESC
+      LIMIT 15
+    `).all();
+
+    // Distribuição por tipo de mensagem
+    analysis.messageTypes = db.prepare(`
+      SELECT
+        message_type,
+        COUNT(*) as count
+      FROM interaction_logs
+      GROUP BY message_type
+      ORDER BY count DESC
+    `).all();
+
+    // Taxa de erro geral
+    analysis.errorRate = db.prepare(`
+      SELECT
+        COUNT(CASE WHEN status = 'error' THEN 1 END) * 100.0 / COUNT(*) as error_percentage
+      FROM interaction_logs
+    `).get();
+
+    // Padrão horário global
+    analysis.hourlyGlobal = db.prepare(`
+      SELECT
+        strftime('%H', timestamp) as hour,
+        COUNT(*) as interactions_count
+      FROM interaction_logs
+      GROUP BY hour
+      ORDER BY hour
+    `).all();
+
+    return analysis;
+  } catch (error) {
+    console.error('Erro ao obter análise de comportamento:', error);
+    return null;
   }
 }
 
@@ -647,6 +937,66 @@ export function exportReportAsJSON(days = 30) {
       success: false,
       error: error.message
     };
+  }
+}
+
+/**
+ * SALVAR RELATÓRIO DIÁRIO NO BANCO
+ */
+export function saveReportToDatabase(reportDate, reportSubject, pdfBuffer, htmlContent, emailSent = false, emailError = null) {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO daily_reports (report_date, report_subject, pdf_data, html_data, email_sent, email_error)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(reportDate, reportSubject, pdfBuffer, htmlContent, emailSent ? 1 : 0, emailError);
+    
+    return {
+      success: true,
+      reportId: result.lastInsertRowid
+    };
+  } catch (error) {
+    console.error('Erro ao salvar relatório:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * LISTAR RELATÓRIOS SALVOS
+ */
+export function listDailyReports(limit = 30) {
+  try {
+    const stmt = db.prepare(`
+      SELECT id, generated_at, report_date, report_subject, email_sent, email_error
+      FROM daily_reports
+      ORDER BY report_date DESC
+      LIMIT ?
+    `);
+    
+    return stmt.all(limit);
+  } catch (error) {
+    console.error('Erro ao listar relatórios:', error);
+    return [];
+  }
+}
+
+/**
+ * OBTER RELATÓRIO COMPLETO COM PDF
+ */
+export function getReportById(reportId) {
+  try {
+    const stmt = db.prepare(`
+      SELECT * FROM daily_reports WHERE id = ?
+    `);
+    
+    return stmt.get(reportId);
+  } catch (error) {
+    console.error('Erro ao obter relatório:', error);
+    return null;
   }
 }
 

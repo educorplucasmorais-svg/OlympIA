@@ -1,263 +1,282 @@
-# 🤖 OlympIA - Bot de Automacao IA para Telegram
+# 🤖 OlympIA Bot - Assistente IA para Telegram
 
-Bot de Telegram com **19 comandos** de IA e automacao, **100% gratuito** usando APIs livres e open-source.
+Bot inteligente com **19 comandos**, IA conversacional, relatórios automatizados e base de conhecimento personalizada.
 
-## ✨ NOVO: Base de Conhecimento com RAG
+---
 
-🧠 **Sistema de memória personalizada**:
-- Carregue seus próprios documentos
-- Bot responde com **contexto real**
-- Busca semântica em memória (sem banco de dados externo)
-- [Ver guia completo →](KNOWLEDGE-BASE.md)
+## 🚀 Início Rápido (3 minutos)
 
 ```bash
-# Setup da base
-npm install cheerio
-npm run knowledge:setup
+# 1. Instalar dependências
+npm install
 
-# Usar no Telegram
+# 2. Configurar (ver seção Configuração)
+# Editar .env com suas chaves
+
+# 3. Iniciar bot
+npm run telegram
+```
+
+**Pronto!** Envie `/start` no Telegram para começar.
+
+---
+
+## 📚 Documentação Principal
+
+### 🎯 Para Começar
+- **[COMO-USAR.md](docs/COMO-USAR.md)** - Guia completo de uso (todos os comandos)
+- **[INSTALACAO.md](docs/INSTALACAO.md)** - Instalação detalhada passo a passo
+- **[CONFIGURACAO.md](docs/CONFIGURACAO.md)** - Configurar variáveis de ambiente
+
+### 👨‍💼 Para Administradores
+- **[ADMIN-GUIA.md](docs/ADMIN-GUIA.md)** - Gerenciar admins e permissões
+- **[RELATORIOS.md](docs/RELATORIOS.md)** - Sistema de relatórios PDF/Email/Banco
+- **[CONHECIMENTO.md](docs/CONHECIMENTO.md)** - Base de conhecimento (RAG)
+
+### 🛠️ Para Desenvolvedores
+- **[ARQUITETURA.md](docs/ARQUITETURA.md)** - Estrutura do código
+- **[API.md](docs/API.md)** - APIs e integrações
+- **[TESTES.md](docs/TESTES.md)** - Como testar o bot
+
+---
+
+## ✨ Principais Funcionalidades
+
+### 🤖 **Conversas Inteligentes**
+Bot responde mensagens normais (não precisa usar `/comando`). Funciona como ChatGPT/Gemini:
+```
+Você: Olá, me ajuda com um email?
+Bot: Claro! Qual é o assunto do email?
+Você: Proposta comercial
+Bot: [Gera email profissional]
+```
+
+### 📊 **Relatórios Automatizados**
+Gera relatórios diários em PDF, envia por email ou salva no banco:
+```
+/relatorio → Bot faz 3 perguntas → Gera PDF personalizado
+/relatorios → Lista últimos 10 relatórios
+/relatorio-baixar 1 → Baixa PDF do banco
+```
+
+### 🧠 **Base de Conhecimento (RAG)**
+Carregue seus documentos e bot responde com contexto:
+```
 /conhecimento Como usar IA em negócios?
+→ Bot busca em seus documentos e responde
 ```
 
-## ✨ NOVO: Marketing & SEO (v2.0)
+### 📱 **Marketing & Redes Sociais**
+Estratégias de SEO e posts prontos:
+```
+/marketing → Dicas de SEO
+/promocao → 5 posts para Instagram/Facebook
+```
 
-📱 **Estratégia completa de marketing**:
-- Dicas de SEO para posicionar melhor
-- Palavras-chave estratégicas
-- Posts prontos para redes sociais
-- [Ver guia completo →](MARKETING-SEO-GUIDE.md)
+---
 
+## 📋 Comandos Disponíveis (19 Total)
+
+| Categoria | Comando | Descrição |
+|-----------|---------|-----------|
+| **🤖 IA & Criatividade** | `/gerar <texto>` | Geração criativa com IA |
+| | `/analisar <texto>` | Análise profunda |
+| | `/imagem <descrição>` | Gera imagens (DALL-E) |
+| | `/traduzir <texto>` | Traduz para qualquer idioma |
+| | `/conhecimento <pergunta>` | Busca na base |
+| **📊 Relatórios** | `/relatorio` | Gera relatório (diálogo) |
+| | `/relatorios` | Lista histórico |
+| | `/relatorio-baixar <id>` | Baixa PDF |
+| **📱 Marketing** | `/marketing` | Estratégia SEO |
+| | `/promocao` | Posts prontos |
+| **👨‍💼 Admin** | `/admin` | Painel administrativo |
+| | `/meu-id` | Descobre seu Chat ID |
+| | `/info` | Status do bot |
+| **🏠 Automação** | `/casa` | Controle smart home |
+| | `/clima` | Previsão do tempo |
+| **📧 Comunicação** | `/email <texto>` | Escreve emails |
+| | `/whatsapp <texto>` | Mensagens WhatsApp |
+| **🔧 Utilidades** | `/ajuda` | Lista comandos |
+| | `/start` | Menu inicial |
+
+---
+
+## ⚙️ Configuração
+
+### 1. Criar Bot no Telegram
+1. Fale com [@BotFather](https://t.me/BotFather)
+2. Use `/newbot` e siga instruções
+3. Copie o **token** recebido
+
+### 2. Configurar `.env`
+```env
+# Bot do Telegram
+TELEGRAM_TOKEN=seu_token_aqui
+
+# Admins (IDs separados por vírgula)
+ADMIN_CHAT_IDS=123456789,987654321
+
+# IA (Groq - grátis)
+GROQ_API_KEY=sua_chave_groq
+
+# Email (opcional - para enviar relatórios)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu@email.com
+SMTP_PASS=sua_senha
+ADMIN_EMAIL=admin@email.com
+```
+
+### 3. Descobrir seu Chat ID
 ```bash
-# Ver estratégia completa
-/marketing
-
-# Gerar 5 posts prontos para compartilhar
-/promocao
-```
-
-## 🚀 Instalacao Rapida
-
-```bash
-npm install
-npm run telegram
-```
-
-## 📋 Comandos Disponiveis (19 Total)
-
-### 🧠 **Inteligencia Artificial & Criatividade** (5 comandos)
-| Comando | Descricao | Exemplo |
-|---------|-----------|---------|
-| `/gerar <texto>` | Geracao criativa com Groq AI | `/gerar um poema sobre tecnologia` |
-| `/analisar <texto>` | Analise profunda com IA | `/analisar Este texto e importante` |
-| `/keywords <texto>` | Extrai palavras-chave SEO | `/keywords marketing digital online` |
-| `/imagem <descricao>` | Gera imagem 1024x1024px | `/imagem uma montanha ao por do sol` |
-| `/chat <mensagem>` | Chat com memoria de contexto | `/chat Como voce esta?` |
-
-### 🛠️ **Utilidades & Ferramentas** (10 comandos)
-| Comando | Descricao | Exemplo |
-|---------|-----------|---------|
-| `/traduzir <idioma> <texto>` | Traduz para qualquer idioma | `/traduzir en Ola mundo` |
-| `/senha [tamanho]` | Gera senha segura (8-128 chars) | `/senha 20` |
-| `/morse <texto>` | Converte para codigo Morse | `/morse SOS` |
-| `/noticias <assunto>` | Busca noticias em tempo real | `/noticias tecnologia` |
-| `/falar <texto>` | Converte texto em audio MP3 | `/falar Bem-vindo ao bot` |
-| `/ocr` | Extrai texto de imagens (foto) | `/ocr [enviar foto]` |
-| `/email <dest\|assunto\|corpo>` | Envia email via Gmail | `/email user@gmail.com\|Oi\|Teste` |
-| `/lembrete <msg> <tempo>` | Agenda lembretes (m/h/d) | `/lembrete estudar 2h` |
-| `/pdf <titulo>` | Gera PDF com conteudo | `/pdf Relatorio vendas` |
-| `/google <busca>` | Pesquisa no Google | `/google dolar hoje` |
-
-### 📱 **Pesquisa & Comunicacao** (2 comandos)
-| Comando | Descricao |
-|---------|-----------|
-| `/start` | Inicia o bot e mostra menu |
-| `/ajuda` | Mostra guia completo de uso |
-
-### 🧠 **Base de Conhecimento** (2 comandos)
-| Comando | Descricao |
-|---------|-----------|
-| `/conhecimento <pergunta>` | 🧠 Busca na base de conhecimento com RAG |
-| `/kb:stats` | Mostra estatisticas da base de conhecimento |
-
-### 📊 **Marketing & SEO** (2 NOVOS comandos!)
-| Comando | Descricao |
-|---------|-----------|
-| `/marketing` | 📊 Estratégia completa de SEO e Marketing |
-| `/promocao` | 📢 Gera 5 posts prontos para redes sociais |
-
-### 📋 **Sistema** (2 comandos)
-| Comando | Descricao |
-|---------|-----------|
-| `/skills` | Lista as 34 skills de IA disponiveis |
-| **Mensagem comum** | Qualquer texto e processado por IA |
-
----
-
-## 🎯 Exemplos de Uso
-
-### Gerar conteudo criativo
-```
-Você: /gerar Uma receita de bolo de chocolate
-Bot: ✨ Resultado: [recebe receita completa]
-```
-
-### Traduzir texto
-```
-Você: /traduzir es Hello world
-Bot: 🌍 Traducao: Hola mundo
-```
-
-### Gerar senha segura
-```
-Você: /senha 25
-Bot: [Gera 25 caracteres aleatorios com simbolos]
-```
-
-### Chat com memoria
-```
-Você: /chat Meu nome e Joao
-Bot: [Armazena em memoria]
-Você: /chat Como se chama o meu amigo?
-Bot: [Responde baseado na conversa anterior]
-```
-
-### Converter para Morse
-```
-Você: /morse HELP
-Bot: .... . .-.. .--.
-```
-
-### Agendar lembretes
-```
-Você: /lembrete estudar fisica 3h
-Bot: Lembrete agendado para 3 horas
-[Apos 3h: "Lembrete: estudar fisica"]
-```
-
----
-
-## 🔧 Configuracao
-
-### Bot do Telegram
-Edite `TELEGRAM_TOKEN` em telegram-bot.js:
-```javascript
-const TELEGRAM_TOKEN = '8426049953:AAEuswuXhwEp-JUJNNYNwos8qd69Df4egeI';
-```
-
-### Email (Gmail)
-Edite `EMAIL_CONFIG` em telegram-bot.js:
-```javascript
-const EMAIL_CONFIG = {
-  user: 'seu-email@gmail.com',
-  pass: 'sua-senha-de-app-gmail'  // Nao e a senha normal!
-};
-```
-
-**Como gerar senha de app no Gmail:**
-1. Acesse: https://myaccount.google.com/security
-2. Ative autenticacao em 2 fatores
-3. Va em "Senhas de app" e crie uma para "Mail"
-4. Use essa senha no config acima
-
-### MCP Server (Claude Desktop - Opcional)
-Adicione ao `claude_desktop_config.json`:
-```json
-{
-  "mcpServers": {
-    "olympia": {
-      "command": "node",
-      "args": ["C:\\Users\\Pichau\\Desktop\\Moltbot\\index.js"]
-    }
-  }
-}
-```
-
----
-
-## 🌐 APIs Utilizadas (Todas Gratuitas)
-
-| Servico | Uso | Link |
-|---------|-----|------|
-| **Groq AI** | LLM Llama 3.3 70B | https://groq.com |
-| **Pollinations.ai** | Geracao de imagens | https://pollinations.ai |
-| **google-translate-api-x** | Traducao multilingue | npm package |
-| **gTTS** | Sintese de voz | npm package |
-| **Tesseract.js** | OCR de imagens | npm package |
-| **NewsAPI** | Busca de noticias | https://newsapi.org |
-| **Google Search** | Pesquisa web | Links diretos |
-| **Gmail/Nodemailer** | Envio de emails | Via SMTP |
-
----
-
-## 📚 Documentacao Adicional
-
-- **[KNOWLEDGE-BASE.md](KNOWLEDGE-BASE.md)** - 🧠 **Sistema RAG com base de conhecimento**
-- [TELEGRAM-SETUP.md](TELEGRAM-SETUP.md) - Criar um novo bot do Telegram
-- [EMAIL-SETUP.md](EMAIL-SETUP.md) - Configurar Gmail para envios
-- FACESWAP-SETUP.md - Configurar face swap (opcional)
-
----
-
-## 📦 Dependencias Principais
-
-```json
-{
-  "@modelcontextprotocol/sdk": "v1.25.3",
-  "node-telegram-bot-api": "v0.67.0",
-  "groq-sdk": "latest",
-  "nodemailer": "latest",
-  "google-translate-api-x": "latest",
-  "gtts": "latest",
-  "tesseract.js": "latest",
-  "axios": "latest",
-  "chart.js": "latest"
-}
-```
-
----
-
-## 💡 Recursos Destacados
-
-✅ **17 comandos prontos para usar**
-✅ **🧠 Base de conhecimento com RAG**
-✅ **Chat com memoria de conversas**
-✅ **Geracao de imagens IA**
-✅ **Traducao em 100+ idiomas**
-✅ **Sintese de voz (TTS)**
-✅ **OCR para extrair texto de fotos**
-✅ **Envio automatico de emails**
-✅ **Lembretes agendados**
-✅ **Busca vetorial com ChromaDB**
-✅ **100% gratuito e sem limites**
-✅ **Codigo aberto e customizavel**
-
----
-
-## ⚡ Inicio Rapido
-
-```bash
-# 1. Instalar dependencias
-npm install
-
-# 2. Configurar token do Telegram (BotFather)
-# Editar TELEGRAM_TOKEN em telegram-bot.js
-
-# 3. Iniciar o bot
+# Inicie o bot
 npm run telegram
 
-# 4. Abrir seu bot no Telegram
-# Procure por @SEU_BOT_NAME e envie /start
+# No Telegram, envie:
+/meu-id
+
+# Bot responde: "Seu Chat ID é: 123456789"
+# Adicione no .env em ADMIN_CHAT_IDS
 ```
 
 ---
 
-## 📞 Suporte
+## 🗂️ Estrutura do Projeto
 
-Para problemas ou duvidas:
-- Verifique os logs no terminal (npm run telegram)
-- Revise a configuracao em telegram-bot.js
-- Consulte TELEGRAM-SETUP.md
+```
+Moltbot/
+├── index.js                    # Bot principal
+├── telegram-bot.js             # Lógica do Telegram
+├── conversation-manager.js     # Sistema de diálogos
+├── database.js                 # Banco SQLite
+├── daily-report.js             # Geração de relatórios
+├── knowledge-base.js           # Sistema RAG
+├── home-automation.js          # Automação residencial
+├── package.json                # Dependências
+├── .env                        # Configuração (criar)
+├── users.db                    # Banco de dados (auto-criado)
+├── docs/                       # Documentação organizada
+│   ├── COMO-USAR.md
+│   ├── INSTALACAO.md
+│   ├── CONFIGURACAO.md
+│   ├── ADMIN-GUIA.md
+│   ├── RELATORIOS.md
+│   ├── CONHECIMENTO.md
+│   ├── ARQUITETURA.md
+│   ├── API.md
+│   └── TESTES.md
+└── knowledge/                  # Base de conhecimento (seus docs)
+    └── (adicione seus .txt aqui)
+```
 
 ---
 
-**Made with ❤️ - OlympIA Bot v1.0**
+## 🧪 Testar o Bot
+
+### Teste Rápido (1 minuto)
+```bash
+# No Telegram
+/start        # Menu inicial
+Olá           # Mensagem normal (testa IA)
+/relatorio    # Inicia diálogo
+```
+
+### Teste Completo
+Ver documentação: [TESTES.md](docs/TESTES.md)
+
+---
+
+## 🔧 Troubleshooting
+
+### Bot não responde
+```bash
+# Verificar se está rodando
+ps aux | grep node
+
+# Ver logs
+node telegram-bot.js
+```
+
+### Erro de token
+- Verifique se `.env` existe
+- Confirme TELEGRAM_TOKEN correto
+- Token deve começar com número (ex: `1234567890:ABC...`)
+
+### Comandos de admin não funcionam
+- Use `/meu-id` para descobrir seu Chat ID
+- Adicione no `.env`: `ADMIN_CHAT_IDS=seu_id_aqui`
+- Reinicie o bot
+
+### Base de conhecimento não funciona
+```bash
+# Instalar dependência
+npm install cheerio
+
+# Setup inicial
+npm run knowledge:setup
+```
+
+---
+
+## 📊 Recursos do Sistema
+
+### Performance
+- ⚡ **Cache inteligente** - Respostas 100x mais rápidas
+- 🔄 **Connection pool** - Reutiliza conexões MCP
+- 🛡️ **Circuit breaker** - Proteção contra falhas
+- ⏱️ **Timeouts** - Evita travamentos
+
+### Segurança
+- 🔐 **Controle de admin** - Apenas IDs autorizados
+- 💾 **Backup automático** - Banco salvo periodicamente
+- 🏥 **Health monitor** - Monitora saúde do bot 24/7
+- 📝 **Logs** - Rastreamento de comandos
+
+### Integrações
+- 🤖 **Groq AI** - IA gratuita e rápida
+- 📧 **SMTP** - Envio de emails
+- 🏠 **Home Assistant** - Automação residencial
+- 📱 **WhatsApp** - Integração planejada
+
+---
+
+## 🆘 Suporte
+
+### Documentação Detalhada
+- [Como Usar](docs/COMO-USAR.md) - Guia completo
+- [Instalação](docs/INSTALACAO.md) - Setup detalhado
+- [Admin](docs/ADMIN-GUIA.md) - Gerenciar bot
+- [Relatórios](docs/RELATORIOS.md) - Sistema de relatórios
+- [Conhecimento](docs/CONHECIMENTO.md) - Base RAG
+- [Testes](docs/TESTES.md) - Testar funcionalidades
+
+### Issues
+- Abra uma issue no GitHub (se aplicável)
+- Descreva o erro e inclua logs
+
+---
+
+## 📝 Licença
+
+MIT License - Livre para uso pessoal e comercial
+
+---
+
+## 🎯 Próximos Passos
+
+Após instalação:
+1. ✅ Envie `/start` no Telegram
+2. ✅ Teste mensagem normal: "Olá"
+3. ✅ Teste comando: `/relatorio`
+4. ✅ Configure admins (ver [ADMIN-GUIA.md](docs/ADMIN-GUIA.md))
+5. ✅ Adicione documentos em `knowledge/` (ver [CONHECIMENTO.md](docs/CONHECIMENTO.md))
+
+**Dúvidas?** Consulte [COMO-USAR.md](docs/COMO-USAR.md) para guia completo.
+
+---
+
+**Status:** 🟢 Sistema 100% funcional e testado
+
+**Versão:** 3.0 (Janeiro 2026)
+
+**Última atualização:** 28/01/2026

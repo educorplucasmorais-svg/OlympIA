@@ -28,8 +28,8 @@ const ADMIN_EMAILS = [
 const emailTransport = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASSWORD || 'your-app-password'
+    user: process.env.EMAIL_USER || 'educorp.lucasmorais@gmail.com',
+    pass: process.env.EMAIL_PASSWORD || 'xuhb rnrl dftn nhed'
   }
 });
 
@@ -265,7 +265,16 @@ export async function generateDailyReport() {
 
     // Coletar dados
     const users = await getAllUsers();
-    const commands = await getMostUsedCommands(20, 1); // Último 1 dia
+    const rawCommands = await getMostUsedCommands(20, 1); // Último 1 dia
+    
+    // Mapear dados dos comandos para incluir propriedades necessárias
+    const commands = rawCommands.map(cmd => ({
+      ...cmd,
+      total_executions: cmd.total_uses,
+      success_rate: cmd.total_uses > 0 ? (cmd.success_count / cmd.total_uses) * 100 : 0,
+      avg_execution_time: cmd.avg_execution_time || 0
+    }));
+    
     const completeReport = await generateCompleteReport(1);
 
     // Teste de funcionalidades
@@ -495,21 +504,19 @@ export async function sendReportToAdmins(report) {
       }
     }
 
-    // Se email falhou, salvar no banco de dados
-    if (!emailSent || emailError) {
-      console.log('[DAILY REPORT] 💾 Salvando relatório no banco de dados...');
-      const reportDate = new Date().toISOString().split('T')[0];
-      const result = saveReportToDatabase(
-        reportDate,
-        report.subject,
-        report.pdfBuffer,
-        report.html,
-        emailSent,
-        emailError
-      );
-      if (result.success) {
-        console.log(`[DAILY REPORT] ✅ Relatório salvo no BD com ID: ${result.reportId}`);
-      }
+    // Sempre salvar no banco de dados (sucesso ou falha)
+    console.log('[DAILY REPORT] 💾 Salvando relatório no banco de dados...');
+    const reportDate = new Date().toISOString().split('T')[0];
+    const result = saveReportToDatabase(
+      reportDate,
+      report.subject,
+      report.pdfBuffer,
+      report.html,
+      emailSent,
+      emailError
+    );
+    if (result.success) {
+      console.log(`[DAILY REPORT] ✅ Relatório salvo no BD com ID: ${result.reportId}`);
     }
 
     console.log('[DAILY REPORT] 📊 Processamento de relatório concluído!');
