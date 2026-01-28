@@ -12,6 +12,8 @@
     "test": "node test-mcp.js",
     "whatsapp": "node whatsapp-bot.js",
     "telegram": "node telegram-bot.js",
+    "telegram:check": "node check-bot-conflicts.js",
+    "telegram:safe": "npm run telegram:check && npm run telegram",
     "cli": "node simple-test.js",
     "knowledge:setup": "node setup-knowledge.js",
     "knowledge:load": "node -e \"import('./knowledge-base.js').then(async kb => { await kb.default.initialize(); const n = await kb.default.loadFromDirectory('./docs'); console.log(`✅ ${n} documentos carregados`); })\"",

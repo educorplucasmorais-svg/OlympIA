@@ -148,6 +148,13 @@ class TelegramOlympIA {
     this.mcpPool = null; // Pool para reusar conexões
     this.conversations = new ConversationManager(); // Gerenciador de conversas
     this.userFavorites = {}; // Favoritos dos usuários
+
+    // 🚨 CONTROLE DE POLLING PARA EVITAR ERROS 409
+    this.isPolling = false;
+    this.reconnecting = false;
+    this.lastReconnectAttempt = 0;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 3;
     
     // Inicializar banco de dados
     initializeDatabase();
@@ -159,6 +166,7 @@ class TelegramOlympIA {
 
   /**
    * CONFIGURAR RECUPERAÇÃO DE CONEXÃO PARA EVITAR ERROS 409
+   * Sistema melhorado com controle de reconexão
    */
   setupConnectionRecovery() {
     // Handler para erros de polling
@@ -166,16 +174,54 @@ class TelegramOlympIA {
       console.log('🔄 Polling error detectado:', error.code, error.message);
 
       if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
-        console.log('⚠️ Conflito de polling detectado. Tentando reconectar...');
+        console.log('⚠️ Conflito de polling detectado - múltiplas instâncias rodando');
 
-        // Parar polling atual
-        this.bot.stopPolling();
+        // Se já está tentando reconectar, ignorar
+        if (this.reconnecting) {
+          console.log('⚠️ Já tentando reconectar, ignorando...');
+          return;
+        }
 
-        // Aguardar um pouco e reconectar
+        // Verificar se não excedeu tentativas máximas
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+          console.log('❌ Máximo de tentativas de reconexão atingido. Abortando.');
+          console.log('💡 Solução: Pare outras instâncias do bot antes de iniciar uma nova.');
+          return;
+        }
+
+        // Verificar cooldown entre tentativas (30 segundos)
+        const now = Date.now();
+        if (now - this.lastReconnectAttempt < 30000) {
+          console.log('⏳ Cooldown ativo, aguardando antes de tentar novamente...');
+          return;
+        }
+
+        this.reconnecting = true;
+        this.reconnectAttempts++;
+        this.lastReconnectAttempt = now;
+
+        console.log(`🔄 Tentativa ${this.reconnectAttempts}/${this.maxReconnectAttempts} de reconexão...`);
+
+        // Parar polling atual de forma segura
+        try {
+          this.bot.stopPolling();
+          this.isPolling = false;
+        } catch (stopError) {
+          console.log('⚠️ Erro ao parar polling:', stopError.message);
+        }
+
+        // Aguardar tempo crescente antes de reconectar
+        const waitTime = Math.min(5000 * this.reconnectAttempts, 30000); // Máximo 30s
+        console.log(`⏳ Aguardando ${waitTime/1000}s antes de reconectar...`);
+
         setTimeout(() => {
-          console.log('🔄 Tentando reconectar...');
-          this.bot.startPolling();
-        }, 5000);
+          this.attemptReconnect();
+        }, waitTime);
+
+      } else if (error.code === 'ETELEGRAM' && error.message.includes('401')) {
+        console.log('❌ TOKEN INVÁLIDO! Verifique o TELEGRAM_TOKEN no arquivo .env');
+        console.log('💡 Obtenha um novo token em: https://t.me/BotFather');
+        process.exit(1);
       }
     });
 
@@ -184,17 +230,81 @@ class TelegramOlympIA {
       console.log('🔄 Webhook error:', error.message);
     });
 
-    // Ping periódico para manter conexão ativa
+    // Ping periódico para manter conexão ativa (menos frequente)
     setInterval(() => {
-      try {
-        // Pequeno teste de conectividade
-        this.bot.getMe().catch(err => {
-          console.log('⚠️ Erro no teste de conectividade:', err.message);
-        });
-      } catch (error) {
-        console.log('⚠️ Erro no ping de conectividade');
+      if (this.isPolling && !this.reconnecting) {
+        try {
+          this.bot.getMe().catch(err => {
+            console.log('⚠️ Erro no teste de conectividade:', err.message);
+          });
+        } catch (error) {
+          console.log('⚠️ Erro no ping de conectividade');
+        }
       }
-    }, 300000); // A cada 5 minutos
+    }, 600000); // A cada 10 minutos (menos frequente)
+  }
+
+  /**
+   * Verificar se há conflitos de polling antes de iniciar
+   */
+  async checkForConflicts() {
+    console.log('🔍 Verificando conflitos de polling...');
+
+    try {
+      // Tentar fazer uma requisição de teste
+      const botInfo = await this.bot.getMe();
+      console.log('⚠️ DETECTADO: Bot já está rodando em outro lugar!');
+      console.log('📋 Informações do bot ativo:', botInfo.username);
+      console.log('💡 Para resolver:');
+      console.log('   1. Pare a instância local: Ctrl+C');
+      console.log('   2. Pare o Railway: railway down');
+      console.log('   3. Aguarde 30 segundos');
+      console.log('   4. Inicie apenas UMA instância');
+      return false;
+    } catch (error) {
+      if (error.code === 'ETELEGRAM' && error.message.includes('401')) {
+        console.log('❌ TOKEN INVÁLIDO! Verifique o TELEGRAM_TOKEN no arquivo .env');
+        console.log('💡 Obtenha um novo token em: https://t.me/BotFather');
+        return false;
+      }
+      // Se não conseguiu conectar, provavelmente não há conflito
+      console.log('✅ Nenhum conflito detectado. Iniciando bot...');
+      return true;
+    }
+  }
+
+  /**
+   * Iniciar bot com verificações de segurança
+   */
+  async startBot() {
+    console.log('🚀 Iniciando OlympIA Bot...');
+
+    // Verificar conflitos antes de iniciar
+    const canStart = await this.checkForConflicts();
+    if (!canStart) {
+      console.log('❌ Inicialização abortada devido a conflitos.');
+      process.exit(1);
+    }
+
+    try {
+      // Configurar recuperação de conexão
+      this.setupConnectionRecovery();
+
+      // Configurar handlers do bot
+      this.setupBot();
+      this.setupInteractionLogging();
+      this.setupConnectionRecovery();
+
+      // Iniciar polling
+      await this.bot.startPolling();
+      this.isPolling = true;
+
+      console.log('✅ Bot iniciado com sucesso!');
+
+    } catch (error) {
+      console.log('❌ Erro ao iniciar bot:', error.message);
+      process.exit(1);
+    }
   }
 
   /**
@@ -544,12 +654,12 @@ class TelegramOlympIA {
       };
 
       await this.bot.sendMessage(chatId,
-        `👑 *Olá ${userName}!*\n` +
-        `🎯 *Painel Administrativo OlympIA*\n\n` +
-        `🤖 *IA Criativa & Ferramentas Profissionais*\n` +
+        `👑 <b>Olá ${userName}!</b>\n` +
+        `🎯 <b>Painel Administrativo OlympIA</b>\n\n` +
+        `🤖 <b>IA Criativa & Ferramentas Profissionais</b>\n` +
         `Selecione uma opção abaixo:`,
         {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           ...inlineKeyboard
         }
       );
@@ -593,12 +703,12 @@ class TelegramOlympIA {
       };
 
       await this.bot.sendMessage(chatId,
-        `🤖 *Olá ${userName}!*\n` +
-        `🎯 *Bem-vindo à OlympIA*\n\n` +
-        `🤖 *IA Criativa & Ferramentas Profissionais*\n` +
+        `🤖 <b>Olá ${userName}!</b>\n` +
+        `🎯 <b>Bem-vindo à OlympIA</b>\n\n` +
+        `🤖 <b>IA Criativa & Ferramentas Profissionais</b>\n` +
         `Selecione uma opção abaixo:`,
         {
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML',
           ...inlineKeyboard
         }
       );
@@ -1988,6 +2098,20 @@ Se você inverte, ninguém mais confia em você.
       // Se não tem texto (foto, sticker, etc), ignora
       if (!text || text.trim() === '') return;
 
+      // VERIFICAR SE USUÁRIO ESTÁ REGISTRADO
+      const user = getUserByChatId(chatId);
+      if (!user) {
+        // Usuário não registrado - enviar mensagem de boas-vindas e instruções
+        await this.bot.sendMessage(chatId,
+          `🤖 <b>Olá! Bem-vindo à OlympIA</b>\n\n` +
+          `Para começar a usar o bot, você precisa ser registrado.\n` +
+          `Entre em contato com um administrador para ser cadastrado.\n\n` +
+          `📞 <i>Contato: @admin_olympia</i>`,
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
       // Ignora se for um comando
       if (text.startsWith('/')) {
         return;
@@ -2554,9 +2678,11 @@ INSTRUÇÃO: Forneça uma resposta inteligente, útil e completa. Não seja supe
   }
 
   async start() {
+    // Usar o novo sistema de inicialização segura
+    await this.startBot();
 
-      // Iniciar monitoramento de saúde (verifica a cada 1 minuto)
-      startHealthMonitoring(this.bot);
+    // Iniciar monitoramento de saúde (verifica a cada 1 minuto)
+    startHealthMonitoring(this.bot);
 
     try {
       await this.connectMCP();
@@ -2566,6 +2692,45 @@ INSTRUÇÃO: Forneça uma resposta inteligente, útil e completa. Não seja supe
 
     console.log('✅ ⚡ OlympIA está rodando!');
     console.log('📱 Envie /start no seu bot do Telegram para começar');
+
+    // Configurar shutdown graceful
+    this.setupGracefulShutdown();
+  }
+
+  /**
+   * Configurar shutdown graceful para evitar conflitos
+   */
+  setupGracefulShutdown() {
+    const shutdown = async (signal) => {
+      console.log(`\n🛑 Recebido sinal ${signal}. Encerrando bot de forma segura...`);
+
+      try {
+        // Parar polling
+        if (this.isPolling) {
+          this.bot.stopPolling();
+          this.isPolling = false;
+          console.log('✅ Polling parado com sucesso');
+        }
+
+        // Fechar conexões MCP
+        if (this.mcpPool) {
+          await this.mcpPool.close();
+          console.log('✅ Conexões MCP fechadas');
+        }
+
+        console.log('👋 Bot encerrado com sucesso!');
+        process.exit(0);
+
+      } catch (error) {
+        console.log('⚠️ Erro durante shutdown:', error.message);
+        process.exit(1);
+      }
+    };
+
+    // Capturar sinais de interrupção
+    process.on('SIGINT', () => shutdown('SIGINT'));  // Ctrl+C
+    process.on('SIGTERM', () => shutdown('SIGTERM')); // Kill
+    process.on('SIGUSR2', () => shutdown('SIGUSR2')); // Nodemon restart
   }
 }
 
