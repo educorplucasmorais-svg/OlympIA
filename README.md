@@ -7,12 +7,12 @@ Bot de Telegram com **17 comandos** de IA e automacao, **100% gratuito** usando 
 🧠 **Sistema de memória personalizada**:
 - Carregue seus próprios documentos
 - Bot responde com **contexto real**
-- Busca semântica com ChromaDB
+- Busca semântica em memória (sem banco de dados externo)
 - [Ver guia completo →](KNOWLEDGE-BASE.md)
 
 ```bash
 # Setup da base
-npm install chromadb cheerio
+npm install cheerio
 npm run knowledge:setup
 
 # Usar no Telegram

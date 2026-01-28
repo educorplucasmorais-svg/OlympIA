@@ -1,7 +1,6 @@
 // 🧠 Sistema de Base de Conhecimento com RAG (Retrieval Augmented Generation)
-// Usa ChromaDB para busca vetorial e Groq para embeddings
+// Versão simplificada SEM ChromaDB - usa busca em memória
 
-import { ChromaClient } from 'chromadb';
 import Groq from 'groq-sdk';
 import fs from 'fs/promises';
 import path from 'path';
@@ -13,64 +12,26 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 class KnowledgeBase {
   constructor() {
-    this.client = null;
-    this.collection = null;
+    this.documents = []; // Array de { id, content, embedding, metadata }
     this.initialized = false;
   }
 
-  // Inicializar ChromaDB
+  // Inicializar base em memória
   async initialize() {
     try {
-      this.client = new ChromaClient();
-      
-      // Criar ou obter coleção
-      try {
-        this.collection = await this.client.getOrCreateCollection({
-          name: 'olympia_knowledge',
-          metadata: { description: 'Base de conhecimento OlympIA Bot' }
-        });
-      } catch {
-        this.collection = await this.client.createCollection({
-          name: 'olympia_knowledge'
-        });
-      }
-
       this.initialized = true;
-      console.log('✅ Base de conhecimento inicializada!');
+      console.log('✅ Base de conhecimento inicializada (modo in-memory)!');
       return true;
     } catch (error) {
-      console.error('❌ Erro ao inicializar ChromaDB:', error.message);
-      console.log('💡 Instale: npm install chromadb');
+      console.error('❌ Erro ao inicializar:', error.message);
       return false;
     }
   }
 
-  // Gerar embeddings usando Groq (alternativa gratuita)
+  // Gerar embeddings usando método simplificado (sem Groq para evitar limites)
   async generateEmbedding(text) {
-    try {
-      // Usar Groq para gerar representação do texto
-      const response = await groq.chat.completions.create({
-        messages: [{
-          role: 'system',
-          content: 'Resuma este texto em 3-5 palavras-chave essenciais, separadas por vírgula:'
-        }, {
-          role: 'user',
-          content: text
-        }],
-        model: 'llama-3.3-70b-versatile',
-        temperature: 0.3,
-        max_tokens: 50
-      });
-
-      const keywords = response.choices[0]?.message?.content || text;
-      
-      // Criar embedding simples baseado em frequência de palavras
-      const embedding = this.simpleEmbedding(text + ' ' + keywords);
-      return embedding;
-    } catch (error) {
-      console.error('Erro ao gerar embedding:', error.message);
-      return this.simpleEmbedding(text);
-    }
+    // Usar embedding simples sem chamar API (mais rápido e sem limites)
+    return this.simpleEmbedding(text);
   }
 
   // Embedding simples usando TF-IDF simplificado (384 dimensões)
@@ -104,14 +65,13 @@ class KnowledgeBase {
       const id = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const embedding = await this.generateEmbedding(content);
 
-      await this.collection.add({
-        ids: [id],
-        embeddings: [embedding],
-        documents: [content],
-        metadatas: [{ ...metadata, addedAt: new Date().toISOString() }]
+      this.documents.push({
+        id,
+        content,
+        embedding,
+        metadata: { ...metadata, addedAt: new Date().toISOString() }
       });
 
-      console.log(`✅ Documento adicionado: ${id}`);
       return id;
     } catch (error) {
       console.error('❌ Erro ao adicionar documento:', error.message);
@@ -119,24 +79,49 @@ class KnowledgeBase {
     }
   }
 
-  // Buscar documentos relevantes
+  // Buscar documentos relevantes (busca por similaridade de cosseno)
   async search(query, topK = 3) {
     if (!this.initialized) await this.initialize();
-    if (!this.initialized) return [];
+    if (!this.initialized || this.documents.length === 0) return [];
 
     try {
       const queryEmbedding = await this.generateEmbedding(query);
 
-      const results = await this.collection.query({
-        queryEmbeddings: [queryEmbedding],
-        nResults: topK
-      });
+      // Calcular similaridade de cosseno com todos os documentos
+      const similarities = this.documents.map(doc => ({
+        content: doc.content,
+        similarity: this.cosineSimilarity(queryEmbedding, doc.embedding),
+        metadata: doc.metadata
+      }));
 
-      return results.documents[0] || [];
+      // Ordenar por similaridade (maior primeiro)
+      similarities.sort((a, b) => b.similarity - a.similarity);
+
+      // Retornar top K
+      return similarities.slice(0, topK).map(s => s.content);
     } catch (error) {
       console.error('❌ Erro ao buscar:', error.message);
       return [];
     }
+  }
+
+  // Calcular similaridade de cosseno entre dois vetores
+  cosineSimilarity(vec1, vec2) {
+    let dotProduct = 0;
+    let mag1 = 0;
+    let mag2 = 0;
+
+    for (let i = 0; i < vec1.length; i++) {
+      dotProduct += vec1[i] * vec2[i];
+      mag1 += vec1[i] * vec1[i];
+      mag2 += vec2[i] * vec2[i];
+    }
+
+    mag1 = Math.sqrt(mag1);
+    mag2 = Math.sqrt(mag2);
+
+    if (mag1 === 0 || mag2 === 0) return 0;
+    return dotProduct / (mag1 * mag2);
   }
 
   // Carregar documentos de uma pasta
@@ -150,8 +135,8 @@ class KnowledgeBase {
           const filePath = path.join(dirPath, file);
           const content = await fs.readFile(filePath, 'utf-8');
           
-          // Dividir em chunks de ~1000 caracteres
-          const chunks = this.chunkText(content, 1000);
+          // Dividir em chunks de ~500 caracteres (menor para evitar limite de tokens)
+          const chunks = this.chunkText(content, 500);
           
           for (const chunk of chunks) {
             await this.addDocument(chunk, { source: file });
@@ -169,7 +154,7 @@ class KnowledgeBase {
   }
 
   // Dividir texto em chunks
-  chunkText(text, maxLength = 1000) {
+  chunkText(text, maxLength = 500) {
     const sentences = text.split(/[.!?]\s+/);
     const chunks = [];
     let current = '';
@@ -184,7 +169,7 @@ class KnowledgeBase {
     }
 
     if (current) chunks.push(current.trim());
-    return chunks;
+    return chunks.filter(c => c.length > 50); // Ignorar chunks muito pequenos
   }
 
   // Responder pergunta usando RAG
@@ -241,16 +226,12 @@ class KnowledgeBase {
     if (!this.initialized) await this.initialize();
     if (!this.initialized) return null;
 
-    try {
-      const count = await this.collection.count();
-      return {
-        totalDocuments: count,
-        collectionName: 'olympia_knowledge',
-        initialized: this.initialized
-      };
-    } catch (error) {
-      return { error: error.message };
-    }
+    return {
+      totalDocuments: this.documents.length,
+      collectionName: 'olympia_knowledge_memory',
+      initialized: this.initialized,
+      storageType: 'In-Memory (No ChromaDB needed)'
+    };
   }
 }
 
