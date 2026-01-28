@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import https from 'https';
 import fs from 'fs';
+import path from 'path';
 import nodemailer from 'nodemailer';
 import translate from 'google-translate-api-x';
 import gtts from 'gtts';
@@ -838,7 +839,16 @@ class TelegramOlympIA {
       const titulo = match[1];
 
       try {
-        const pdfPath = `/tmp/documento_${Date.now()}.pdf`;
+        // Usar caminho do sistema operacional (Windows ou Linux)
+        const tmpDir = process.platform === 'win32' ? process.env.TEMP || '.\\temp' : '/tmp';
+        const pdfPath = path.join(tmpDir, `documento_${Date.now()}.pdf`);
+        
+        // Garantir que o diretório existe
+        const dir = path.dirname(pdfPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+
         const doc = new PDFDocument({
           size: 'A4',
           margin: 50
@@ -874,7 +884,11 @@ class TelegramOlympIA {
         await this.bot.sendDocument(chatId, pdfPath);
 
         // Limpar arquivo
-        fs.unlinkSync(pdfPath);
+        try {
+          fs.unlinkSync(pdfPath);
+        } catch (e) {
+          // Ignorar erro ao deletar
+        }
 
         await this.bot.sendMessage(chatId, '✅ PDF gerado com sucesso!');
       } catch (error) {
