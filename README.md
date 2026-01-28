@@ -1,6 +1,6 @@
 # 🤖 OlympIA - Bot de Automacao IA para Telegram
 
-Bot de Telegram com **17 comandos** de IA e automacao, **100% gratuito** usando APIs livres e open-source.
+Bot de Telegram com **19 comandos** de IA e automacao, **100% gratuito** usando APIs livres e open-source.
 
 ## ✨ NOVO: Base de Conhecimento com RAG
 
@@ -19,6 +19,22 @@ npm run knowledge:setup
 /conhecimento Como usar IA em negócios?
 ```
 
+## ✨ NOVO: Marketing & SEO (v2.0)
+
+📱 **Estratégia completa de marketing**:
+- Dicas de SEO para posicionar melhor
+- Palavras-chave estratégicas
+- Posts prontos para redes sociais
+- [Ver guia completo →](MARKETING-SEO-GUIDE.md)
+
+```bash
+# Ver estratégia completa
+/marketing
+
+# Gerar 5 posts prontos para compartilhar
+/promocao
+```
+
 ## 🚀 Instalacao Rapida
 
 ```bash
@@ -26,7 +42,7 @@ npm install
 npm run telegram
 ```
 
-## 📋 Comandos Disponiveis (17 Total)
+## 📋 Comandos Disponiveis (19 Total)
 
 ### 🧠 **Inteligencia Artificial & Criatividade** (5 comandos)
 | Comando | Descricao | Exemplo |
@@ -37,7 +53,7 @@ npm run telegram
 | `/imagem <descricao>` | Gera imagem 1024x1024px | `/imagem uma montanha ao por do sol` |
 | `/chat <mensagem>` | Chat com memoria de contexto | `/chat Como voce esta?` |
 
-### 🛠️ **Utilidades & Ferramentas** (9 comandos)
+### 🛠️ **Utilidades & Ferramentas** (10 comandos)
 | Comando | Descricao | Exemplo |
 |---------|-----------|---------|
 | `/traduzir <idioma> <texto>` | Traduz para qualquer idioma | `/traduzir en Ola mundo` |
@@ -48,21 +64,31 @@ npm run telegram
 | `/ocr` | Extrai texto de imagens (foto) | `/ocr [enviar foto]` |
 | `/email <dest\|assunto\|corpo>` | Envia email via Gmail | `/email user@gmail.com\|Oi\|Teste` |
 | `/lembrete <msg> <tempo>` | Agenda lembretes (m/h/d) | `/lembrete estudar 2h` |
-| `/grafico` | Framework para graficos | [Em desenvolvimento] |
+| `/pdf <titulo>` | Gera PDF com conteudo | `/pdf Relatorio vendas` |
+| `/google <busca>` | Pesquisa no Google | `/google dolar hoje` |
 
-### 📱 **Pesquisa & Comunicacao** (3 comandos)
+### 📱 **Pesquisa & Comunicacao** (2 comandos)
 | Comando | Descricao |
 |---------|-----------|
-| `/google <busca>` | Pesquisa no Google, retorna links |
 | `/start` | Inicia o bot e mostra menu |
 | `/ajuda` | Mostra guia completo de uso |
 
-### 📊 **Info & Sistema** (4 comandos)
+### 🧠 **Base de Conhecimento** (2 comandos)
+| Comando | Descricao |
+|---------|-----------|
+| `/conhecimento <pergunta>` | 🧠 Busca na base de conhecimento com RAG |
+| `/kb:stats` | Mostra estatisticas da base de conhecimento |
+
+### 📊 **Marketing & SEO** (2 NOVOS comandos!)
+| Comando | Descricao |
+|---------|-----------|
+| `/marketing` | 📊 Estratégia completa de SEO e Marketing |
+| `/promocao` | 📢 Gera 5 posts prontos para redes sociais |
+
+### 📋 **Sistema** (2 comandos)
 | Comando | Descricao |
 |---------|-----------|
 | `/skills` | Lista as 34 skills de IA disponiveis |
-| `/conhecimento <pergunta>` | 🧠 Busca na base de conhecimento com RAG |
-| `/kb:stats` | Mostra estatisticas da base vetorial |
 | **Mensagem comum** | Qualquer texto e processado por IA |
 
 ---
