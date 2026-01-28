@@ -16,8 +16,6 @@ import homeAutomation from './home-automation.js';
 import knowledgeBase from './knowledge-base.js';
 import { 
   initializeDatabase, 
-  registerUser, 
-  loginUser, 
   getUserByChatId, 
   getAllUsers, 
   getUserStats,
@@ -40,18 +38,25 @@ import {
 } from './optimization-config.js';
 
 // 👑 ADMINISTRAÇÃO - Painel Exclusivo para Admins
-import { setupAdminInfoCommand } from './admin-commands.js';
+import { setupAdminInfoCommand, isAdmin } from './admin-commands.js';
 import { initializeDailyReportSchedule, generateReportOnDemand } from './daily-report.js';
 import adminSecurity from './admin-security.js';
 
 // 🏥 MONITORAMENTO - Health Check 24/7
 import { startHealthMonitoring, getHealthStatus } from './health-monitor.js';
 
+// 💬 CONVERSAS INTERATIVAS - Diálogos humanizados
+import ConversationManager from './conversation-manager.js';
+
 // Carregar variáveis de ambiente
 dotenv.config();
 
 // ⚠️ CONFIGURAÇÃO VIA .env FILE (MAIS SEGURO)
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_TOKEN_HERE';
+const ADMIN_CHAT_IDS = (process.env.ADMIN_CHAT_IDS || '')
+  .split(',')
+  .map((id) => parseInt(id.trim(), 10))
+  .filter((id) => Number.isInteger(id));
 
 // ⚠️ EMAIL CONFIG
 const EMAIL_CONFIG = {
@@ -82,6 +87,7 @@ const NEWS_API_URL = 'https://newsapi.org/v2/everything';
 
 // Armazenar conversas e lembretes
 const conversations = {};
+const chatModes = {}; // Configuração de chat contextual por usuário
 const reminders = {};
 const userFavorites = {}; // Favoritos dos usuários
 
@@ -135,12 +141,10 @@ class TelegramOlympIA {
     this.bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
     this.mcpClient = null;
     this.mcpPool = null; // Pool para reusar conexões
+    this.conversations = new ConversationManager(); // Gerenciador de conversas
     
     // Inicializar banco de dados
     initializeDatabase();
-    
-    // Sistema de login (armazena estado de registro)
-    this.userRegistration = {}; // { chatId: { step: 'name'|'email', data: {...} } }
     
     this.setupBot();
   }
@@ -200,40 +204,112 @@ class TelegramOlympIA {
   // Variável para armazenar comandos hot (atualizada às 05:00)
   hotCommands = [];
 
-  setupBot() {
-    // Comando /start - Sistema de Login Obrigatório
+  async setupBot() {
+    // Comando /start - Sem sistema de login
     this.bot.onText(/\/start/, async (msg) => {
       const chatId = msg.chat.id;
-      
-      // Verificar se usuário já está registrado
+      const displayName = msg.from?.first_name || 'amigo';
+      const admin = await isAdmin(chatId);
+      if (admin) {
+        return this.showAdminMenu(chatId, displayName);
+      }
+      return this.showUserMenu(chatId, displayName);
+    });
+
+    // Comando oculto /meu-id - Mostra seu chat ID
+    this.bot.onText(/\/meu-id/, async (msg) => {
+      const chatId = msg.chat.id;
+      return this.bot.sendMessage(chatId, `🆔 Seu Chat ID é: \`${chatId}\``, { parse_mode: 'Markdown' });
+    });
+
+    // Comando oculto /admin (não aparece nos menus)
+    this.bot.onText(/\/admin$/, async (msg) => {
+      const chatId = msg.chat.id;
+      const displayName = msg.from?.first_name || 'admin';
+      const admin = await isAdmin(chatId);
+      if (!admin) {
+        return this.bot.sendMessage(chatId, '🔐 Acesso negado.');
+      }
+      return this.showAdminMenu(chatId, displayName);
+    });
+
+    // Comando /relatorio - Inicia diálogo interativo
+    this.bot.onText(/\/relatorio/, async (msg) => {
+      const chatId = msg.chat.id;
+      const admin = await isAdmin(chatId);
+      if (!admin) {
+        return this.bot.sendMessage(chatId, '🔐 Acesso negado.');
+      }
+
+      // Verificar se usuário já está em conversas
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
+      }
+
+      // Inicia novo diálogo
+      const firstQuestion = this.conversations.startConversation(chatId, 'relatorio');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
+      }
+    });
+
+    // Comando oculto /relatorios - Lista relatórios salvos
+    this.bot.onText(/\/relatorios/, async (msg) => {
+      const chatId = msg.chat.id;
+      const admin = await isAdmin(chatId);
+      if (!admin) {
+        return this.bot.sendMessage(chatId, '🔐 Acesso negado.');
+      }
       try {
-        const user = await getUserByChatId(chatId);
-        
-        if (user) {
-          // Usuário já existe - fazer login
-          await loginUser(chatId);
-          
-          // Verificar se é admin
-          const isAdmin = user.is_admin || [4, 5, 6, 7].includes(chatId);
-          
-          if (isAdmin) {
-            await this.showAdminMenu(chatId, user.name);
-          } else {
-            await this.showUserMenu(chatId, user.name);
-          }
-        } else {
-          // Novo usuário - iniciar registro
-          this.userRegistration[chatId] = { step: 'name' };
-          this.bot.sendMessage(chatId, 
-            '👋 *Bem-vindo à OlympIA!*\n\n' +
-            'Para começar, preciso de algumas informações:\n\n' +
-            '📝 *Qual é o seu nome?*',
-            { parse_mode: 'Markdown' }
-          );
+        const { listDailyReports } = await import('./database.js');
+        const reports = listDailyReports(10);
+        if (reports.length === 0) {
+          return this.bot.sendMessage(chatId, '📭 Nenhum relatório salvo no banco de dados.');
         }
+        let message = '📊 *Últimos Relatórios Salvos*\n\n';
+        reports.forEach((report, i) => {
+          const date = new Date(report.report_date).toLocaleDateString('pt-BR');
+          const sent = report.email_sent ? '✅' : '❌';
+          message += `${i + 1}. ID ${report.id} | ${date} ${sent}\n   ${report.report_subject}\n`;
+          if (report.email_error) {
+            message += `   ⚠️ ${report.email_error}\n`;
+          }
+          message += '\n';
+        });
+        message += '💡 Use: /relatorio-baixar ID';
+        return this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       } catch (error) {
-        console.error('Erro no /start:', error);
-        this.bot.sendMessage(chatId, '❌ Erro ao processar. Tente novamente.');
+        return this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+      }
+    });
+
+    // Comando oculto /relatorio-baixar ID - Baixa PDF de um relatório
+    this.bot.onText(/\/relatorio-baixar\s+(\d+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const admin = await isAdmin(chatId);
+      if (!admin) {
+        return this.bot.sendMessage(chatId, '🔐 Acesso negado.');
+      }
+      try {
+        const reportId = parseInt(match[1], 10);
+        const { getReportById } = await import('./database.js');
+        const report = getReportById(reportId);
+        
+        if (!report || !report.pdf_data) {
+          return this.bot.sendMessage(chatId, '❌ Relatório não encontrado ou sem PDF.');
+        }
+
+        const date = new Date(report.report_date).toLocaleDateString('pt-BR');
+        const status = report.email_sent ? 'Enviado por Email ✅' : 'Armazenado no BD (Email falhou) ❌';
+        const caption = `📄 Relatório ${date}\n${status}`;
+
+        return this.bot.sendDocument(chatId, report.pdf_data, {
+          caption: caption,
+          filename: `Relatorio-${report.report_date}.pdf`
+        });
+      } catch (error) {
+        return this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
       }
     });
 
@@ -309,6 +385,275 @@ class TelegramOlympIA {
       );
     };
 
+    // ═══════════════════════════════════════════════════════════════
+    // GERENCIADOR DE DIÁLOGOS INTERATIVOS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Processa respostas em diálogos interativos
+     */
+    this.handleConversationResponse = async (chatId, userResponse) => {
+      try {
+        const result = this.conversations.processResponse(chatId, userResponse);
+
+        if (!result) {
+          return this.bot.sendMessage(chatId, '⚠️ Erro ao processar sua resposta.');
+        }
+
+        if (!result.complete) {
+          // Próxima pergunta
+          const tip = result.tip ? `\n\n💡 ${result.tip}` : '';
+          return this.bot.sendMessage(chatId, result.question + tip);
+        }
+
+        // Diálogo completo - executar ação
+        return await this.executeDialogAction(chatId, result.action, result.data);
+      } catch (error) {
+        this.conversations.cancelConversation(chatId);
+        return this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+      }
+    };
+
+    /**
+     * Executa ação após diálogo completo
+     */
+    this.executeDialogAction = async (chatId, action, data) => {
+      const processingMsg = await this.bot.sendMessage(chatId, '⏳ Processando suas informações...');
+
+      try {
+        switch (action) {
+          case 'generateReport':
+            return await this.generateReportFromDialog(chatId, data, processingMsg);
+          case 'analyzeData':
+            return await this.analyzeDataFromDialog(chatId, data, processingMsg);
+          case 'generateContent':
+            return await this.generateContentFromDialog(chatId, data, processingMsg);
+          case 'generateImage':
+            return await this.generateImageFromDialog(chatId, data, processingMsg);
+          case 'translateText':
+            return await this.translateTextFromDialog(chatId, data, processingMsg);
+          case 'extractKeywords':
+            return await this.extractKeywordsFromDialog(chatId, data, processingMsg);
+          case 'generateMorse':
+            return await this.generateMorseFromDialog(chatId, data, processingMsg);
+          case 'searchNews':
+            return await this.searchNewsFromDialog(chatId, data, processingMsg);
+          case 'sendEmail':
+            return await this.sendEmailFromDialog(chatId, data, processingMsg);
+          case 'contextualChat':
+            return await this.contextualChatFromDialog(chatId, data, processingMsg);
+          case 'searchKnowledge':
+            return await this.searchKnowledgeFromDialog(chatId, data, processingMsg);
+          default:
+            await this.bot.editMessageText(`❌ Ação desconhecida: ${action}`, {
+              chat_id: chatId,
+              message_id: processingMsg.message_id
+            });
+        }
+      } catch (error) {
+        await this.bot.editMessageText(`❌ Erro ao executar ação: ${error.message}`, {
+          chat_id: chatId,
+          message_id: processingMsg.message_id
+        });
+      }
+    };
+
+    /**
+     * Gera relatório baseado no diálogo
+     */
+    this.generateReportFromDialog = async (chatId, data, processingMsg) => {
+      try {
+        const { generateDailyReport, sendReportToAdmins } = await import('./daily-report.js');
+        
+        // Mapear tipo de relatório
+        const tipoMap = { '1': 'daily', '2': 'weekly', '3': 'monthly', '4': 'custom' };
+        const tipo = tipoMap[data.tipo] || 'daily';
+        
+        const report = await generateDailyReport();
+        await sendReportToAdmins(report);
+
+        let resposta = `✅ *Relatório ${tipo} gerado com sucesso!*\n\n`;
+        resposta += `📋 Formato: ${data.formato === '1' ? 'PDF' : data.formato === '2' ? 'Excel' : 'HTML'}\n`;
+        
+        if (data.email && (data.email.toLowerCase() === 'sim' || data.email.includes('@'))) {
+          resposta += `📧 Será enviado por email\n`;
+        }
+        
+        resposta += `\n💡 Use \`/relatorios\` para ver o histórico de relatórios`;
+
+        await this.bot.editMessageText(resposta, {
+          chat_id: chatId,
+          message_id: processingMsg.message_id,
+          parse_mode: 'Markdown'
+        });
+      } catch (error) {
+        throw error;
+      }
+    };
+
+    /**
+     * Analisa dados baseado no diálogo
+     */
+    this.analyzeDataFromDialog = async (chatId, data, processingMsg) => {
+      try {
+        if (!this.mcpClient) {
+          await this.connectMCP();
+        }
+
+        const profundidadeMap = { '1': 'breve', '2': 'detalhada', '3': 'com recomendações' };
+        const profundidade = profundidadeMap[data.profundidade] || 'normal';
+
+        const prompt = `Faça uma análise ${profundidade} dos seguintes dados:\n\n${data.data}\n\nSeja conciso mas informativo.`;
+
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout na análise')), 30000);
+        });
+
+        const resultPromise = this.mcpClient.callTool({
+          name: 'olympia_reasoning',
+          arguments: { prompt }
+        });
+
+        const result = await Promise.race([resultPromise, timeoutPromise]);
+        const analise = result.content[0].text;
+
+        let resposta = `📊 *Análise Complete*\n\n${analise}`;
+        
+        if (data.acao === '2') {
+          resposta += `\n\n📄 Deseja gerar um relatório com esses dados? Use \`/relatorio\``;
+        } else if (data.acao === '3') {
+          resposta += `\n\n🎯 Próximas ações sugeridas: Agendar reunião ou revisar com a equipe`;
+        }
+
+        // Dividir se for muito longo
+        if (resposta.length > 4096) {
+          const parte1 = resposta.substring(0, 4000);
+          const parte2 = resposta.substring(4000);
+          
+          await this.bot.editMessageText(parte1, {
+            chat_id: chatId,
+            message_id: processingMsg.message_id,
+            parse_mode: 'Markdown'
+          });
+          
+          await this.bot.sendMessage(chatId, parte2, { parse_mode: 'Markdown' });
+        } else {
+          await this.bot.editMessageText(resposta, {
+            chat_id: chatId,
+            message_id: processingMsg.message_id,
+            parse_mode: 'Markdown'
+          });
+        }
+      } catch (error) {
+        throw error;
+      }
+    };
+
+    /**
+     * Gera conteúdo baseado no diálogo
+     */
+    this.generateContentFromDialog = async (chatId, data, processingMsg) => {
+      try {
+        if (!this.mcpClient) {
+          await this.connectMCP();
+        }
+
+        const tipoMap = { 
+          '1': 'post para redes sociais', 
+          '2': 'email marketing', 
+          '3': 'artigo de blog',
+          '4': 'descrição de produto'
+        };
+        const tipo = tipoMap[data.tipo] || 'conteúdo';
+
+        const tonMap = {
+          '1': 'profissional',
+          '2': 'descontraído',
+          '3': 'persuasivo',
+          '4': 'educativo',
+          '5': 'divertido'
+        };
+        const tom = tonMap[data.tons] || 'neutro';
+
+        const prompt = `Crie um ${tipo} sobre "${data.tema}" com tom ${tom}. Seja criativo e envolvente. Máximo 500 caracteres.`;
+
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout na geração')), 30000);
+        });
+
+        const resultPromise = this.mcpClient.callTool({
+          name: 'olympia_reasoning',
+          arguments: { prompt }
+        });
+
+        const result = await Promise.race([resultPromise, timeoutPromise]);
+        const conteudo = result.content[0].text;
+
+        const resposta = `✨ *Conteúdo Gerado*\n\n${conteudo}\n\n💡 Gostou? Pode usar, editar ou regenerar!`;
+
+        if (resposta.length > 4096) {
+          await this.bot.editMessageText(resposta.substring(0, 4000), {
+            chat_id: chatId,
+            message_id: processingMsg.message_id,
+            parse_mode: 'Markdown'
+          });
+          await this.bot.sendMessage(chatId, resposta.substring(4000), { parse_mode: 'Markdown' });
+        } else {
+          await this.bot.editMessageText(resposta, {
+            chat_id: chatId,
+            message_id: processingMsg.message_id,
+            parse_mode: 'Markdown'
+          });
+        }
+      } catch (error) {
+        throw error;
+      }
+    };
+
+    /**
+     * Gera imagem baseado no diálogo
+     */
+    this.generateImageFromDialog = async (chatId, data, processingMsg) => {
+      try {
+        const estiloMap = {
+          '1': 'realista',
+          '2': 'desenho',
+          '3': 'aquarela',
+          '4': 'cartoon',
+          '5': 'digital art',
+          '6': '3D render'
+        };
+        const estilo = estiloMap[data.estilo] || 'digital art';
+
+        const tamanhoMap = {
+          '1': '1:1',
+          '2': '3:4',
+          '3': '16:9',
+          '4': '2:1'
+        };
+        const tamanho = tamanhoMap[data.tamanho] || '1:1';
+
+        const prompt = `Gere uma imagem no estilo ${estilo}, proporção ${tamanho}: ${data.descricao}`;
+
+        const resposta = `🎨 *Geração de Imagem Iniciada*\n\n` +
+          `📝 Descrição: ${data.descricao}\n` +
+          `🎭 Estilo: ${estilo}\n` +
+          `📐 Tamanho: ${tamanho}\n\n` +
+          `⏳ A imagem está sendo gerada (pode levar alguns minutos)...`;
+
+        await this.bot.editMessageText(resposta, {
+          chat_id: chatId,
+          message_id: processingMsg.message_id,
+          parse_mode: 'Markdown'
+        });
+
+        // Aqui você integraria com uma API de geração de imagens
+        // Por enquanto, apenas mostra a confirmação
+      } catch (error) {
+        throw error;
+      }
+    };
+
     // Comando /ia - Mostrar comandos de IA
     this.bot.onText(/\/ia/, (msg) => {
       const chatId = msg.chat.id;
@@ -359,77 +704,18 @@ class TelegramOlympIA {
     });
 
     // 📚 Comando /conhecimento - Buscar na base de conhecimento
-    this.bot.onText(/\/conhecimento (.+)/, async (msg, match) => {
+    // Comando /conhecimento - Inicia diálogo conversacional
+    this.bot.onText(/\/conhecimento(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const query = match[1];
-      const emoji = COMMAND_ICONS['/conhecimento'];
       
-      // 🚦 Rate limiting
-      if (OPTIMIZATION_FLAGS.enableRateLimiting) {
-        try {
-          await kbRateLimiter.call(async () => {});
-        } catch (error) {
-          await this.bot.sendMessage(chatId, 
-            `${emoji} *Calma lá!* 🛑\n\nEstou processando muitas perguntas. Tenta novamente em alguns segundos!`
-          );
-          return;
-        }
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
       }
-      
-      const startTime = Date.now();
-      await this.bot.sendMessage(chatId, `${emoji} *Deixa eu mergulhar na minha base de conhecimento...*`);
-      
-      try {
-        // ✨ Com cache + timeout + retry
-        let result;
-        
-        if (OPTIMIZATION_FLAGS.enableKBCache) {
-          const cacheKey = `kb:${query.toLowerCase()}`;
-          result = await cachedWithProtection(
-            kbCache,
-            cacheKey,
-            () => knowledgeBase.answerQuestion(query),
-            {
-              operationName: `/conhecimento:${query.substring(0, 20)}`,
-              timeout: OPTIMIZATION_FLAGS.kbTimeout,
-              maxRetries: 2,
-              ttlMs: 5 * 60 * 1000, // 5 minutos
-              enableCache: true
-            }
-          );
-        } else {
-          result = await knowledgeBase.answerQuestion(query);
-        }
-        
-        const timeMs = Date.now() - startTime;
-        logPerformance(`/conhecimento`, timeMs, kbCache.get(`kb:${query.toLowerCase()}`) !== undefined);
-        
-        if (result.hasContext) {
-          let response = `${emoji} *Encontrei essa resposta:*\n\n━━━━━━━━━━━━━━━━━━━━━━\n${result.answer}\n━━━━━━━━━━━━━━━━━━━━━━`;
-          
-          if (result.sources && result.sources.length > 0) {
-            response += `\n\n📚 *${result.sources.length} documento(s) consultado(s)*`;
-          }
-          
-          response += `\n⏱️ *Tempo: ${timeMs}ms*`;
-          
-          await this.bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
-        } else {
-          await this.bot.sendMessage(chatId, 
-            `${emoji} *Ops! Não encontrei nada sobre isso na minha base.*\n\n` +
-            '💡 *Que tal:*\n' +
-            '• Tentar uma pergunta diferente?\n' +
-            '• Adicionar documentos com `/knowledge:load`?\n' +
-            '• Usar `/chat` para conversa livre?',
-            { parse_mode: 'Markdown' }
-          );
-        }
-      } catch (error) {
-        const timeMs = Date.now() - startTime;
-        await this.bot.sendMessage(chatId, 
-          `${emoji} *Deu ruim aqui...*\n\n❌ ${error.message}\n\n⏱️ Tempo: ${timeMs}ms\n\nTenta de novo? 🤔`,
-          { parse_mode: 'Markdown' }
-        );
+
+      const firstQuestion = this.conversations.startConversation(chatId, 'conhecimento');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
       }
     });
 
@@ -940,76 +1226,53 @@ Se você inverte, ninguém mais confia em você.
     });
 
     // Comando /gerar - Gerar Conteúdo com IA
-    this.bot.onText(/\/gerar (.+)/, async (msg, match) => {
+    // Comando /gerar - Inicia diálogo conversacional
+    this.bot.onText(/\/gerar(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const text = match[1];
-      
-      // Mensagem humanizada com emoji customizado
       const emoji = COMMAND_ICONS['/gerar'];
-      await this.bot.sendMessage(chatId, `${emoji} Deixa eu trabalhar minha mágica aqui... ✨`);
       
-      try {
-        if (!this.mcpClient) {
-          await this.connectMCP();
-        }
+      // Verifica se já tem conversa em andamento
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
+      }
 
-        const result = await this.mcpClient.callTool({
-          name: 'olympia_reasoning',
-          arguments: { prompt: `Crie um conteúdo de qualidade sobre: ${text}\n\nSeja criativo, preciso e útil.` }
-        });
-
-        const response = result.content[0].text;
-        await this.bot.sendMessage(chatId, `${emoji} *Pronto! Aqui está seu conteúdo:*\n\n${response}`);
-      } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Ops! Algo deu errado: ${error.message}\n\nTenta de novo? 🤔`);
+      // Inicia diálogo
+      const firstQuestion = this.conversations.startConversation(chatId, 'gerar');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
       }
     });
 
-    // Comando /analisar
-    this.bot.onText(/\/analisar (.+)/, async (msg, match) => {
+    // Comando /analisar - Inicia diálogo conversacional
+    this.bot.onText(/\/analisar(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const text = match[1];
+      const emoji = COMMAND_ICONS['/analisar'];
       
-      await this.bot.sendMessage(chatId, '🔍 Analisando...');
-      
-      try {
-        if (!this.mcpClient) {
-          await this.connectMCP();
-        }
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
+      }
 
-        const result = await this.mcpClient.callTool({
-          name: 'olympia_reasoning',
-          arguments: { prompt: `Faça uma análise LÓGICA e PRECISA do seguinte:\n\n${text}\n\nSeja objetivo, cite fatos e evite especulações.` }
-        });
-
-        const response = result.content[0].text;
-        await this.bot.sendMessage(chatId, response);
-      } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+      const firstQuestion = this.conversations.startConversation(chatId, 'analisar');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
       }
     });
 
-    // Comando /keywords
-    this.bot.onText(/\/keywords (.+)/, async (msg, match) => {
+    // Comando /keywords - Inicia diálogo conversacional
+    this.bot.onText(/\/keywords(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const text = match[1];
+      const emoji = COMMAND_ICONS['/keywords'];
       
-      await this.bot.sendMessage(chatId, '🔑 Extraindo keywords SEO...');
-      
-      try {
-        if (!this.mcpClient) {
-          await this.connectMCP();
-        }
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
+      }
 
-        const result = await this.mcpClient.callTool({
-          name: 'olympia_reasoning',
-          arguments: { prompt: `Extraia APENAS as palavras-chave SEO mais importantes deste texto. Liste em ordem de relevância:\n\n${text}\n\nFormato: "palavra-chave (relevância: alta/média/baixa)"` }
-        });
-
-        const response = result.content[0].text;
-        await this.bot.sendMessage(chatId, `🎯 *Keywords SEO:*\n\n${response}`, { parse_mode: 'Markdown' });
-      } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+      const firstQuestion = this.conversations.startConversation(chatId, 'keywords');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
       }
     });
 
@@ -1094,79 +1357,21 @@ Se você inverte, ninguém mais confia em você.
     });
 
     // Comando /email - Enviar email (não bloqueante)
-    this.bot.onText(/\/email (.+)/, async (msg, match) => {
+    // Comando /email - Inicia diálogo conversacional
+    this.bot.onText(/\/email(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const params = match[1];
       
-      // Formato: /email destinatario@email.com | Assunto | Mensagem
-      const parts = params.split('|').map(p => p.trim());
-      
-      if (parts.length < 3) {
-        await this.bot.sendMessage(chatId, 
-          '❌ Formato incorreto!\n\n' +
-          'Use: /email destinatario@email.com | Assunto | Mensagem\n\n' +
-          'Exemplo:\n' +
-          '/email joao@exemplo.com | Reunião | Olá, confirmo presença na reunião.'
-        );
-        return;
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
       }
 
-      const [to, subject, text] = parts;
-      
-      await this.bot.sendMessage(chatId, `📧 Enviando email para ${to}...`);
-      
-      // Enviar de forma não bloqueante com timeout
-      this.sendEmailAsync(chatId, to, subject, text);
+      const firstQuestion = this.conversations.startConversation(chatId, 'email');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
+      }
     });
-    
-  }
 
-  // Helper para enviar email sem travar o bot
-  async sendEmailAsync(chatId, to, subject, text) {
-    try {
-      // Criar transporter com timeout
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: EMAIL_CONFIG.user,
-          pass: EMAIL_CONFIG.pass
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000
-      });
-
-      // Timeout de 15 segundos
-      const sendWithTimeout = Promise.race([
-        transporter.sendMail({
-          from: `"Moltbot" <${EMAIL_CONFIG.user}>`,
-          to: to,
-          subject: subject,
-          text: text,
-          html: `<p>${text.replace(/\n/g, '<br>')}</p>`
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout: Email demorou mais de 15s')), 15000)
-        )
-      ]);
-
-      const info = await sendWithTimeout;
-
-      await this.bot.sendMessage(chatId, 
-        `✅ Email enviado!\n\n` +
-        `📬 Para: ${to}\n` +
-        `📋 Assunto: ${subject}\n` +
-        `📝 ID: ${info.messageId}`
-      );
-    } catch (error) {
-      await this.bot.sendMessage(chatId, 
-        `❌ Erro: ${error.message}\n\n` +
-        `💡 Verifique:\n` +
-        `- Conexão com internet\n` +
-        `- EMAIL_USER e EMAIL_PASSWORD no .env\n` +
-        `- Use senha de app do Gmail`
-      );
-    }
 
     // Comando /faceswap - Desabilitado temporariamente (requer model válido no Replicate)
     this.bot.onText(/\/faceswap/, async (msg) => {
@@ -1184,16 +1389,19 @@ Se você inverte, ninguém mais confia em você.
     });
 
     // 1️⃣ Comando /traduzir - Tradução de Textos
-    this.bot.onText(/\/traduzir (\w+) (.+)/, async (msg, match) => {
+    // Comando /traduzir - Inicia diálogo conversacional
+    this.bot.onText(/\/traduzir(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const idioma = match[1];
-      const texto = match[2];
+      const emoji = COMMAND_ICONS['/traduzir'];
+      
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
+      }
 
-      try {
-        const res = await translate({ text: texto, to: idioma });
-        await this.bot.sendMessage(chatId, `🌍 Tradução para ${idioma.toUpperCase()}:\n\n${res.text}`);
-      } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}\n\nUse: /traduzir pt Hello world`);
+      const firstQuestion = this.conversations.startConversation(chatId, 'traduzir');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
       }
     });
 
@@ -1216,60 +1424,33 @@ Se você inverte, ninguém mais confia em você.
       await this.bot.sendMessage(chatId, `🔐 Senha Gerada (${comprimento} caracteres):\n\n\`\`\`\n${senha}\n\`\`\``);
     });
 
-    // 7️⃣ Comando /morse - Conversor de Texto
-    this.bot.onText(/\/morse (.+)/, async (msg, match) => {
+    // Comando /morse - Inicia diálogo conversacional
+    this.bot.onText(/\/morse(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const texto = match[1].toUpperCase();
-
-      const morseCode = {
-        'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
-        'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
-        'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
-        'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
-        'Y': '-.--', 'Z': '--..', '0': '-----', '1': '.----', '2': '..---',
-        '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...',
-        '8': '---..', '9': '----.', '.': '.-.-.-', ',': '--..--', ' ': '/'
-      };
-
-      let resultado = '';
-      for (let char of texto) {
-        resultado += (morseCode[char] || char) + ' ';
+      
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
       }
 
-      await this.bot.sendMessage(chatId, `🔤 Código Morse:\n\n\`\`\`\n${resultado.trim()}\n\`\`\``);
+      const firstQuestion = this.conversations.startConversation(chatId, 'morse');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
+      }
     });
 
-    // 13️⃣ Comando /noticias - Notícias
-    this.bot.onText(/\/noticias (.+)/, async (msg, match) => {
+    // Comando /noticias - Inicia diálogo conversacional
+    this.bot.onText(/\/noticias(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const assunto = match[1];
+      
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
+      }
 
-      await this.bot.sendMessage(chatId, '📰 Buscando notícias...');
-
-      try {
-        const response = await axios.get(NEWS_API_URL, {
-          params: {
-            q: assunto,
-            sortBy: 'publishedAt',
-            pageSize: 5,
-            language: 'pt'
-          },
-          timeout: 5000
-        });
-
-        if (response.data.articles.length === 0) {
-          await this.bot.sendMessage(chatId, '❌ Nenhuma notícia encontrada');
-          return;
-        }
-
-        let noticias = `📰 Notícias sobre "${assunto}":\n\n`;
-        response.data.articles.slice(0, 3).forEach((article, i) => {
-          noticias += `${i + 1}. ${article.title}\n📌 ${article.url}\n\n`;
-        });
-
-        await this.bot.sendMessage(chatId, noticias);
-      } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: API de notícias indisponível\n\nUse: /noticias tecnologia`);
+      const firstQuestion = this.conversations.startConversation(chatId, 'noticias');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
       }
     });
 
@@ -1354,53 +1535,18 @@ Se você inverte, ninguém mais confia em você.
       );
     });
 
-    // 18️⃣ Comando /chat - Chatbot com Memória e Contexto
-    // 💭 Comando /chat - Chat com memória
-    this.bot.onText(/\/chat (.+)/, async (msg, match) => {
+    // Comando /chat - Inicia diálogo conversacional com contexto
+    this.bot.onText(/\/chat(?:\s|$)/, async (msg) => {
       const chatId = msg.chat.id;
-      const mensagem = match[1];
-      const emoji = COMMAND_ICONS['/chat'];
-
-      if (!conversations[chatId]) {
-        conversations[chatId] = [];
+      
+      if (this.conversations.isInConversation(chatId)) {
+        return this.bot.sendMessage(chatId, '⏳ Você já tem um diálogo em andamento. Responda primeiro!');
       }
 
-      conversations[chatId].push({ role: 'user', content: mensagem });
-
-      try {
-        if (!this.mcpClient) {
-          await this.connectMCP();
-        }
-
-        await this.bot.sendMessage(chatId, `${emoji} *Deixa eu pensar um pouco...*`);
-
-        // Construir histórico com melhor formato
-        const historicoTexto = conversations[chatId]
-          .slice(-10) // Últimas 10 mensagens
-          .map(m => `${m.role === 'user' ? 'Você' : 'OlympIA'}: ${m.content}`)
-          .join('\n');
-          
-        const prompt = `Você é OlympIA ⚡, um assistente inteligente, divertido e preciso que SEMPRE é autêntica e personável.\n\nHistórico da conversa:\n${historicoTexto}\n\nResponda de forma natural, conversacional, e sem alucinar. Use emojis quando apropriado para parecer mais humana.`;
-        
-        const result = await this.mcpClient.callTool({
-          name: 'olympia_reasoning',
-          arguments: { prompt: prompt }
-        });
-
-        const resposta = result.content[0].text;
-        conversations[chatId].push({ role: 'assistant', content: resposta });
-
-        // Manter apenas últimas 20 mensagens
-        if (conversations[chatId].length > 20) {
-          conversations[chatId] = conversations[chatId].slice(-20);
-        }
-
-        await this.bot.sendMessage(chatId, `${emoji} ${resposta}`);
-      } catch (error) {
-        await this.bot.sendMessage(chatId, 
-          `${emoji} *Opa! Meu cérebro travou um segundo...*\n\n❌ ${error.message}\n\nTenta de novo? 🤔`,
-          { parse_mode: 'Markdown' }
-        );
+      const firstQuestion = this.conversations.startConversation(chatId, 'chat');
+      if (firstQuestion) {
+        const tip = firstQuestion.tip ? `\n\n💡 ${firstQuestion.tip}` : '';
+        await this.bot.sendMessage(chatId, firstQuestion.text + tip);
       }
     });
 
@@ -1453,65 +1599,22 @@ Se você inverte, ninguém mais confia em você.
       );
     });
 
-    // Mensagens gerais (sem comando) - Chat Humanizado
+    // Mensagens gerais (sem comando) - Chat Humanizado + Diálogos
     this.bot.on('message', async (msg) => {
       const chatId = msg.chat.id;
       const text = msg.text;
 
-      if (!text) return;
+      // Se não tem texto (foto, sticker, etc), ignora
+      if (!text || text.trim() === '') return;
 
-      // PRIMEIRO: Verificar se é processo de registro (ANTES de ignorar comandos)
-      if (this.userRegistration[chatId]) {
-        const regData = this.userRegistration[chatId];
-        
-        if (regData.step === 'name') {
-          // Salvar nome e pedir email
-          regData.name = text;
-          regData.step = 'email';
-          return this.bot.sendMessage(chatId, 
-            `Prazer, *${text}*! 😊\n\n` +
-            '📧 *Qual é o seu email?*\n' +
-            '_Usaremos para relatórios e recuperação de conta_',
-            { parse_mode: 'Markdown' }
-          );
-        } else if (regData.step === 'email') {
-          // Validar email e registrar
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(text)) {
-            return this.bot.sendMessage(chatId, 
-              '❌ Email inválido.\n\n' +
-              'Por favor, digite um email válido:',
-              { parse_mode: 'Markdown' }
-            );
-          }
-          
-          try {
-            // Registrar usuário
-            await registerUser(regData.name, text, chatId);
-            await loginUser(chatId);
-            
-            delete this.userRegistration[chatId];
-            
-            await this.bot.sendMessage(chatId, 
-              '✅ *Cadastro concluído com sucesso!*\n\n' +
-              `Bem-vindo, ${regData.name}! 🎉`,
-              { parse_mode: 'Markdown' }
-            );
-            
-            // Mostrar menu de usuário
-            await this.showUserMenu(chatId, regData.name);
-          } catch (error) {
-            console.error('Erro ao registrar:', error);
-            delete this.userRegistration[chatId];
-            return this.bot.sendMessage(chatId, '❌ Erro ao registrar. Use /start para tentar novamente.');
-          }
-          return;
-        }
-      }
-
-      // DEPOIS: Ignora se for um comando
+      // Ignora se for um comando
       if (text.startsWith('/')) {
         return;
+      }
+
+      // 🎯 VERIFICA SE USUÁRIO ESTÁ EM UM DIÁLOGO
+      if (this.conversations.isInConversation(chatId)) {
+        return await this.handleConversationResponse(chatId, text);
       }
 
       // Chat humanizado padrão
@@ -1685,27 +1788,100 @@ Se você inverte, ninguém mais confia em você.
 
         const doc = new PDFDocument({
           size: 'A4',
-          margin: 50
+          margin: 50,
+          info: {
+            Title: titulo,
+            Author: 'OlympIA Bot',
+            Subject: 'Documento Gerado Automaticamente',
+            CreationDate: new Date()
+          }
         });
 
         const stream = fs.createWriteStream(pdfPath);
         doc.pipe(stream);
 
-        // Conteúdo do PDF
-        doc.fontSize(24).text(titulo, { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(12).text(`Gerado por OlympIA Bot`, { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(10).text(`Data: ${new Date().toLocaleString('pt-BR')}`);
-        doc.moveDown();
+        // Header profissional
+        doc.rect(0, 0, 595.28, 80).fill('#1a365d'); // Header azul escuro
+        doc.fillColor('white').fontSize(24).font('Helvetica-Bold').text('OlympIA', 50, 25);
+        doc.fontSize(12).font('Helvetica').text('Sistema de Documentação Automática', 50, 50);
+        doc.fillColor('#1a365d').rect(0, 80, 595.28, 20).fill(); // Linha separadora
 
-        doc.fontSize(14).text('Informações do Documento:', { underline: true });
-        doc.moveDown();
-        doc.fontSize(10);
-        doc.text(`• Título: ${titulo}`);
-        doc.text(`• Gerado automaticamente via Telegram Bot`);
-        doc.text(`• Formato: PDF A4`);
-        doc.text(`• Encoding: UTF-8`);
+        // Título do documento
+        doc.fillColor('#1a365d').fontSize(20).font('Helvetica-Bold').text(
+          titulo,
+          50, 120,
+          { align: 'center' }
+        );
+
+        let yPosition = 160;
+
+        // Informações do documento
+        doc.fillColor('#1a365d').fontSize(14).font('Helvetica-Bold').text('📄 INFORMAÇÕES DO DOCUMENTO', 50, yPosition);
+        yPosition += 25;
+
+        // Card de informações
+        doc.fillColor('#f8f9fa').rect(50, yPosition, 480, 80).fill();
+        doc.strokeColor('#dee2e6').rect(50, yPosition, 480, 80).stroke();
+
+        doc.fillColor('#333').fontSize(10).font('Helvetica');
+        doc.text(`• Título: ${titulo}`, 70, yPosition + 15);
+        doc.text(`• Gerado por: OlympIA Bot`, 70, yPosition + 30);
+        doc.text(`• Plataforma: Telegram`, 70, yPosition + 45);
+        doc.text(`• Formato: PDF A4 (Profissional)`, 70, yPosition + 60);
+
+        yPosition += 100;
+
+        // Data e timestamp
+        doc.fillColor('#666').fontSize(9).font('Helvetica').text(
+          `Documento gerado em: ${new Date().toLocaleString('pt-BR')}`,
+          50, yPosition,
+          { align: 'center' }
+        );
+
+        yPosition += 30;
+
+        // Seção de conteúdo
+        doc.fillColor('#1a365d').fontSize(14).font('Helvetica-Bold').text('📝 CONTEÚDO', 50, yPosition);
+        yPosition += 25;
+
+        doc.fillColor('#333').fontSize(11).font('Helvetica').text(
+          'Este documento foi gerado automaticamente através do comando /pdf do OlympIA Bot. ' +
+          'O sistema utiliza tecnologia avançada de processamento de documentos para criar ' +
+          'arquivos PDF profissionais com formatação executiva.',
+          50, yPosition,
+          {
+            width: 480,
+            align: 'justify'
+          }
+        );
+
+        yPosition += 80;
+
+        // Características técnicas
+        doc.fillColor('#1a365d').fontSize(12).font('Helvetica-Bold').text('⚙️ CARACTERÍSTICAS TÉCNICAS', 50, yPosition);
+        yPosition += 20;
+
+        const features = [
+          '✅ Formatação profissional executiva',
+          '✅ Compatibilidade com PDF/A-4',
+          '✅ Codificação UTF-8 completa',
+          '✅ Otimizado para impressão',
+          '✅ Metadados incorporados'
+        ];
+
+        features.forEach(feature => {
+          doc.fillColor('#333').fontSize(10).font('Helvetica').text(feature, 70, yPosition);
+          yPosition += 15;
+        });
+
+        // Footer
+        const footerY = 750;
+        doc.strokeColor('#dee2e6').moveTo(50, footerY).lineTo(545, footerY).stroke();
+        doc.fillColor('#666').fontSize(8).font('Helvetica').text(
+          'OlympIA Bot - Documentação Automática | Tecnologia de IA Avançada',
+          50, footerY + 10,
+          { align: 'center' }
+        );
 
         doc.end();
 
@@ -1756,98 +1932,6 @@ Se você inverte, ninguém mais confia em você.
     // SISTEMA DE LOGIN & BANCO DE DADOS
     // ============================================
 
-    // 🔐 Comando /login - Sistema de autenticação
-    this.bot.onText(/\/login/, (msg) => {
-      const chatId = msg.chat.id;
-      const emoji = COMMAND_ICONS['/inicio'] || '🔐';
-      
-      // Verificar se usuário já está cadastrado
-      const existingUser = getUserByChatId(chatId);
-      
-      if (existingUser) {
-        this.bot.sendMessage(chatId, 
-          `${emoji} *Você já tem cadastro!*\n\n` +
-          `👤 Nome: ${existingUser.name}\n` +
-          `📧 Email: ${existingUser.email}\n` +
-          `✅ Status: Ativo\n` +
-          `📊 Logins: ${existingUser.login_count}\n` +
-          `🕐 Último login: ${new Date(existingUser.last_login).toLocaleString('pt-BR')}\n\n` +
-          `💡 Use /meus-dados para ver informações completas`,
-          { parse_mode: 'Markdown' }
-        );
-        return;
-      }
-
-      // Iniciar processo de registro
-      this.userRegistration[chatId] = { step: 'name', data: {} };
-      
-      this.bot.sendMessage(chatId, 
-        `${emoji} *Bem-vindo ao Sistema de Login da OlympIA!* 👋\n\n` +
-        `Vou fazer umas perguntas rápidas para registrar você.\n\n` +
-        `❓ *Qual é seu nome completo?*`
-      );
-    });
-
-    // 📝 Handler para receber nome (primeira etapa do registro)
-    this.bot.on('message', (msg) => {
-      const chatId = msg.chat.id;
-      const text = msg.text;
-
-      // Ignorar se for comando
-      if (text && text.startsWith('/')) return;
-
-      // Se está no processo de registro
-      if (this.userRegistration[chatId]) {
-        const registration = this.userRegistration[chatId];
-
-        if (registration.step === 'name') {
-          registration.data.name = text;
-          registration.step = 'email';
-          
-          this.bot.sendMessage(chatId, 
-            `✅ Anotado! Seu nome é *${text}*\n\n` +
-            `❓ Agora, qual é seu email?`
-          );
-        } 
-        else if (registration.step === 'email') {
-          const email = text.trim();
-          
-          // Validar email
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(email)) {
-            this.bot.sendMessage(chatId, 
-              `❌ Email inválido!\n\n` +
-              `Use um email válido: seu.email@dominio.com`
-            );
-            return;
-          }
-
-          // Registrar usuário no banco
-          registration.data.email = email;
-          const result = registerUser(chatId, registration.data.name, email);
-
-          if (result.success) {
-            this.bot.sendMessage(chatId, 
-              `${COMMAND_ICONS['/inicio'] || '🔐'} *Cadastro Realizado com Sucesso!* 🎉\n\n` +
-              `✅ Bem-vindo, *${registration.data.name}*!\n\n` +
-              `📧 Email registrado: ${email}\n` +
-              `🔐 ID Único: #${result.userId}\n\n` +
-              `🚀 Agora você tem acesso a todos os comandos da OlympIA!\n\n` +
-              `Use /meus-dados para ver seu perfil`,
-              { parse_mode: 'Markdown' }
-            );
-          } else {
-            this.bot.sendMessage(chatId, 
-              `⚠️ ${result.message}`
-            );
-          }
-
-          // Limpar processo de registro
-          delete this.userRegistration[chatId];
-        }
-      }
-    });
-
     // 👤 Comando /meus-dados - Ver dados do usuário
     this.bot.onText(/\/meus-dados/, (msg) => {
       const chatId = msg.chat.id;
@@ -1857,8 +1941,8 @@ Se você inverte, ninguém mais confia em você.
 
       if (!user) {
         this.bot.sendMessage(chatId, 
-          `${emoji} *Você ainda não fez login!*\n\n` +
-          `Use /login para registrar-se`,
+          `${emoji} *Nenhum cadastro encontrado.*\n\n` +
+          `Use /start para iniciar`,
           { parse_mode: 'Markdown' }
         );
         return;
