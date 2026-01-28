@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:latest
+    container_name: home-assistant
+    privileged: true
+    restart: unless-stopped
+    
+    environment:
+      - TZ=America/Sao_Paulo
+      - PYTHONUNBUFFERED=1
+    
+    ports:
+      - "8123:8123"  # Interface web do Home Assistant
+    
+    volumes:
+      - ./config/homeassistant:/config  # Persistir configurações
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro  # Para integração com Bluetooth/Zigbee (opcional)
+    
+    networks:
+      - homelab
+    
+    # Healthcheck para saber se está rodando
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Opcional: MQTT Broker para comunicação entre dispositivos
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # WebSocket
+    
+    volumes:
+      - ./config/mosquitto/config:/mosquitto/config
+      - ./config/mosquitto/data:/mosquitto/data
+      - ./config/mosquitto/log:/mosquitto/log
+    
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    driver: bridge
+
+# ============================================
+# COMO USAR:
+# ============================================
+# 1. docker-compose up -d
+#    (Vai baixar e iniciar os containers)
+#
+# 2. Acessar Home Assistant:
+#    http://localhost:8123
+#
+# 3. Seguir setup wizard no navegador
+#
+# 4. Gerar Long-Lived Access Token:
+#    Profile (canto inferior esquerdo) 
+#    → Security → Criar novo token
+#    → Copiar e colar no .env (HOME_ASSISTANT_TOKEN)
+#
+# 5. Adicionar integrações (via UI):
+#    Devices & Services → Create Automation
+#    
+#    Exemplo integração Philips Hue:
+#    - Devices & Services → Philips Hue → Enter Bridge IP
+#
+#    Exemplo integração Sonos:
+#    - Devices & Services → Sonos → Auto-discover
+#
+# 6. Parar os containers:
+#    docker-compose down
+#
+# 7. Ver logs:
+#    docker-compose logs -f homeassistant
+#
+# ============================================
+# PORTAS USADAS:
+# ============================================
+# 8123  - Home Assistant Web UI
+# 1883  - MQTT Broker (comunicação IoT)
+# 9001  - MQTT WebSocket
+#
+# ============================================
+# DICAS DE SEGURANÇA:
+# ============================================
+# 1. Mudar porta padrão em production:
+#    Editar ports: ["192.168.1.100:8123:8123"]
+#    (substitui 192.168.1.100 pelo IP da sua máquina)
+#
+# 2. Usar certificado SSL/TLS:
+#    Colocar cert.pem e privkey.pem em ./config/homeassistant/
+#    E configurar em configuration.yaml:
+#    http:
+#      ssl_certificate: /config/cert.pem
+#      ssl_key: /config/privkey.pem
+#
+# 3. Backup automático:
+#    docker exec home-assistant tar czf - /config | gzip > backup-$(date +%Y%m%d).tar.gz
+#
+# ============================================
