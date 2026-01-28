@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import PDFDocument from 'pdfkit';
 import homeAutomation from './home-automation.js';
+import knowledgeBase from './knowledge-base.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -146,11 +147,64 @@ class TelegramOlympIA {
       this.bot.sendMessage(chatId,
         '📊 *Sistema & Info*\n\n' +
         '`/skills` - Ver 34 skills de IA\n' +
+        '`/conhecimento` - Buscar na base de conhecimento 🧠\n' +
         '`/ajuda` - Guia completo\n' +
         '`/start` - Voltar ao menu\n\n' +
         '💡 Exemplo: `/skills`',
         { parse_mode: 'Markdown' }
       );
+    });
+
+    // 🧠 Comando /conhecimento - Buscar na base de conhecimento
+    this.bot.onText(/\/conhecimento (.+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const query = match[1];
+      
+      await this.bot.sendMessage(chatId, '🔍 Buscando na base de conhecimento...');
+      
+      try {
+        const result = await knowledgeBase.answerQuestion(query);
+        
+        if (result.hasContext) {
+          let response = `🧠 *Resposta da Base de Conhecimento:*\n\n${result.answer}`;
+          
+          if (result.sources && result.sources.length > 0) {
+            response += `\n\n📚 *Fontes consultadas:* ${result.sources.length} documento(s)`;
+          }
+          
+          await this.bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+        } else {
+          await this.bot.sendMessage(chatId, 
+            '❌ ' + result.answer + '\n\n' +
+            '💡 *Dica:* Adicione documentos com `/knowledge:load`'
+          );
+        }
+      } catch (error) {
+        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+      }
+    });
+
+    // 📊 Comando /kb:stats - Estatísticas da base
+    this.bot.onText(/\/kb:stats/, async (msg) => {
+      const chatId = msg.chat.id;
+      
+      try {
+        const stats = await knowledgeBase.getStats();
+        
+        if (stats && !stats.error) {
+          await this.bot.sendMessage(chatId,
+            `📊 *Estatísticas da Base de Conhecimento:*\n\n` +
+            `📚 Total de documentos: ${stats.totalDocuments}\n` +
+            `🗃️ Coleção: ${stats.collectionName}\n` +
+            `✅ Status: ${stats.initialized ? 'Inicializada' : 'Não inicializada'}`,
+            { parse_mode: 'Markdown' }
+          );
+        } else {
+          await this.bot.sendMessage(chatId, '❌ Base ainda não inicializada. Use `/conhecimento <pergunta>` primeiro.');
+        }
+      } catch (error) {
+        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+      }
     });
 
     // Comando /ajuda

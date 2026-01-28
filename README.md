@@ -1,6 +1,23 @@
 # 🤖 OlympIA - Bot de Automacao IA para Telegram
 
-Bot de Telegram com **15 comandos** de IA e automacao, **100% gratuito** usando APIs livres e open-source.
+Bot de Telegram com **17 comandos** de IA e automacao, **100% gratuito** usando APIs livres e open-source.
+
+## ✨ NOVO: Base de Conhecimento com RAG
+
+🧠 **Sistema de memória personalizada**:
+- Carregue seus próprios documentos
+- Bot responde com **contexto real**
+- Busca semântica com ChromaDB
+- [Ver guia completo →](KNOWLEDGE-BASE.md)
+
+```bash
+# Setup da base
+npm install chromadb cheerio
+npm run knowledge:setup
+
+# Usar no Telegram
+/conhecimento Como usar IA em negócios?
+```
 
 ## 🚀 Instalacao Rapida
 
@@ -9,7 +26,7 @@ npm install
 npm run telegram
 ```
 
-## 📋 Comandos Disponiveis (15 Total)
+## 📋 Comandos Disponiveis (17 Total)
 
 ### 🧠 **Inteligencia Artificial & Criatividade** (5 comandos)
 | Comando | Descricao | Exemplo |
@@ -40,10 +57,12 @@ npm run telegram
 | `/start` | Inicia o bot e mostra menu |
 | `/ajuda` | Mostra guia completo de uso |
 
-### 📊 **Info & Sistema** (2 comandos)
+### 📊 **Info & Sistema** (4 comandos)
 | Comando | Descricao |
 |---------|-----------|
 | `/skills` | Lista as 34 skills de IA disponiveis |
+| `/conhecimento <pergunta>` | 🧠 Busca na base de conhecimento com RAG |
+| `/kb:stats` | Mostra estatisticas da base vetorial |
 | **Mensagem comum** | Qualquer texto e processado por IA |
 
 ---
@@ -146,8 +165,9 @@ Adicione ao `claude_desktop_config.json`:
 
 ## 📚 Documentacao Adicional
 
-- TELEGRAM-SETUP.md - Criar um novo bot do Telegram
-- EMAIL-SETUP.md - Configurar Gmail para envios
+- **[KNOWLEDGE-BASE.md](KNOWLEDGE-BASE.md)** - 🧠 **Sistema RAG com base de conhecimento**
+- [TELEGRAM-SETUP.md](TELEGRAM-SETUP.md) - Criar um novo bot do Telegram
+- [EMAIL-SETUP.md](EMAIL-SETUP.md) - Configurar Gmail para envios
 - FACESWAP-SETUP.md - Configurar face swap (opcional)
 
 ---
@@ -172,7 +192,8 @@ Adicione ao `claude_desktop_config.json`:
 
 ## 💡 Recursos Destacados
 
-✅ **15 comandos prontos para usar**
+✅ **17 comandos prontos para usar**
+✅ **🧠 Base de conhecimento com RAG**
 ✅ **Chat com memoria de conversas**
 ✅ **Geracao de imagens IA**
 ✅ **Traducao em 100+ idiomas**
@@ -180,6 +201,7 @@ Adicione ao `claude_desktop_config.json`:
 ✅ **OCR para extrair texto de fotos**
 ✅ **Envio automatico de emails**
 ✅ **Lembretes agendados**
+✅ **Busca vetorial com ChromaDB**
 ✅ **100% gratuito e sem limites**
 ✅ **Codigo aberto e customizavel**
 

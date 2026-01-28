@@ -12,7 +12,10 @@
     "test": "node test-mcp.js",
     "whatsapp": "node whatsapp-bot.js",
     "telegram": "node telegram-bot.js",
-    "cli": "node simple-test.js"
+    "cli": "node simple-test.js",
+    "knowledge:setup": "node setup-knowledge.js",
+    "knowledge:load": "node -e \"import('./knowledge-base.js').then(async kb => { await kb.default.initialize(); const n = await kb.default.loadFromDirectory('./docs'); console.log(`✅ ${n} documentos carregados`); })\"",
+    "knowledge:stats": "node -e \"import('./knowledge-base.js').then(async kb => { await kb.default.initialize(); const stats = await kb.default.getStats(); console.log('📊 Stats:', stats); })\""
   },
   "keywords": [
     "mcp",
@@ -26,6 +29,8 @@
     "@modelcontextprotocol/sdk": "^1.25.3",
     "axios": "^1.13.4",
     "chart.js": "^4.5.1",
+    "cheerio": "^1.0.0",
+    "chromadb": "^1.8.1",
     "dotenv": "^17.2.3",
     "google-auth-library": "^10.5.0",
     "google-translate-api-x": "^10.7.2",
