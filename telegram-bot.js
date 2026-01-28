@@ -39,6 +39,11 @@ import {
   printStatus
 } from './optimization-config.js';
 
+// 👑 ADMINISTRAÇÃO - Painel Exclusivo para Admins
+import { setupAdminInfoCommand } from './admin-commands.js';
+import { initializeDailyReportSchedule, generateReportOnDemand } from './daily-report.js';
+import adminSecurity from './admin-security.js';
+
 // Carregar variáveis de ambiente
 dotenv.config();
 
@@ -189,53 +194,117 @@ class TelegramOlympIA {
     }
   }
 
+  // Variável para armazenar comandos hot (atualizada às 05:00)
+  hotCommands = [];
+
   setupBot() {
-    // Comando /start - Bem-vindo à OlympIA
-    this.bot.onText(/\/start/, (msg) => {
+    // Comando /start - Sistema de Login Obrigatório
+    this.bot.onText(/\/start/, async (msg) => {
       const chatId = msg.chat.id;
-      this.bot.sendMessage(chatId, 
-        '🤖 *Opa! Bem-vindo à OlympIA!* 👋\n' +
-        'Sua IA inteligente com 22 superpoderes no Telegram\n\n' +
+      
+      // Verificar se usuário já está registrado
+      try {
+        const user = await getUserByChatId(chatId);
         
-        '⚡️✍️ *Criatividade com IA* (5 comandos)\n' +
-        '• 🔥 `/gerar` - Criar ideias geniais em segundos\n' +
-        '• 🔍📊 `/analisar` - Entender tudo profundamente\n' +
-        '• 🎯🔑 `/keywords` - Palavras que vendem\n' +
-        '• 🔥🎭 `/imagem` - Visualizar sonhos em pixels\n' +
-        '• 🔥💭 `/chat` - Conversa que entende você\n\n' +
-        
-        '🛠️ *Superpoderes* - 10 Ferramentas Incríveis\n' +
-        '• 🌍🗣️ `/traduzir` - Fale qualquer idioma\n' +
-        '• 🔐🛡️ `/senha` - Segurança de primeiro nível\n' +
-        '• 📡⚙️ `/morse` - Código secreto clássico\n' +
-        '• 📰🌟 `/noticias` - Notícias fresquinhas\n' +
-        '• 🎙️🔊 `/falar` - Transforme texto em voz\n' +
-        '• 📸👁️ `/ocr` - Ler textos em fotos\n' +
-        '• 🔥✉️ `/email` - Envie mensagens de impacto\n' +
-        '• ⏰🔔 `/lembrete` - Nunca se esqueça de nada\n' +
-        '• 🔥📋 `/pdf` - Documentos profissionais\n' +
-        '• 🔎🌐 `/google` - Pesquise o mundo\n\n' +
-        
-        '🏠 *Casa Inteligente* (5 comandos)\n' +
-        '• Controle luzes, sons, automações\n\n' +
-        
-        '📚 *Conhecimento Personalizado*\n' +
-        '• 🔥📚 `/conhecimento` - Sua base de dados inteligente\n' +
-        '• 📈🎲 `/kb:stats` - Veja o que você aprendeu\n\n' +
-        
-        '🎯 *Marketing & Crescimento*\n' +
-        '• 🔥📊 `/marketing` - Domine redes sociais\n' +
-        '• 🔥🎉 `/promocao` - Posts que vendem\n\n' +
-        
-        '👥 *Social Media & Favoritos* ⭐ NOVO\n' +
-        '• 👥🌐 `/social` - Estratégia viral completa\n' +
-        '• 🔥👑 `/vip` - Os 8 comandos mais quentes\n' +
-        '• 💖🌹 `/favoritos` - Seus atalhos especiais\n\n' +
-        
-        '💡 *Ou simplesmente me escreva algo e vou responder!*',
+        if (user) {
+          // Usuário já existe - fazer login
+          await loginUser(chatId);
+          
+          // Verificar se é admin
+          const isAdmin = user.is_admin || [4, 5, 6, 7].includes(chatId);
+          
+          if (isAdmin) {
+            await this.showAdminMenu(chatId, user.name);
+          } else {
+            await this.showUserMenu(chatId, user.name);
+          }
+        } else {
+          // Novo usuário - iniciar registro
+          this.userRegistration[chatId] = { step: 'name' };
+          this.bot.sendMessage(chatId, 
+            '👋 *Bem-vindo à OlympIA!*\n\n' +
+            'Para começar, preciso de algumas informações:\n\n' +
+            '📝 *Qual é o seu nome?*',
+            { parse_mode: 'Markdown' }
+          );
+        }
+      } catch (error) {
+        console.error('Erro no /start:', error);
+        this.bot.sendMessage(chatId, '❌ Erro ao processar. Tente novamente.');
+      }
+    });
+
+    // Método para mostrar menu ADMIN
+    this.showAdminMenu = async (chatId, userName) => {
+      const hot = (cmd) => this.hotCommands.includes(cmd) ? '🔥 ' : '';
+      
+      await this.bot.sendMessage(chatId,
+        `👑 *Olá ${userName}! Acesso Admin*\n\n` +
+        '*Painel Administrativo:*\n' +
+        '📊 `/info` - Painel completo de gerência\n\n' +
+        '*Comandos Disponíveis:*\n\n' +
+        '✨ *Criatividade com IA*\n' +
+        `• ${hot('/gerar')}💡 \`/gerar\` - Criar ideias geniais\n` +
+        `• ${hot('/analisar')}🔍 \`/analisar\` - Análise profunda\n` +
+        `• ${hot('/keywords')}🎯 \`/keywords\` - Palavras-chave\n` +
+        `• ${hot('/imagem')}🎭 \`/imagem\` - Gerar imagens\n` +
+        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n\n` +
+        '🛠️ *Ferramentas*\n' +
+        `• ${hot('/traduzir')}🌍 \`/traduzir\` - Tradução\n` +
+        `• ${hot('/senha')}🔐 \`/senha\` - Gerar senha\n` +
+        `• ${hot('/morse')}📡 \`/morse\` - Código Morse\n` +
+        `• ${hot('/noticias')}📰 \`/noticias\` - Notícias\n` +
+        `• ${hot('/falar')}🎙️ \`/falar\` - Text-to-Speech\n` +
+        `• ${hot('/ocr')}📸 \`/ocr\` - Extrair texto\n` +
+        `• ${hot('/email')}✉️ \`/email\` - Enviar email\n` +
+        `• ${hot('/lembrete')}⏰ \`/lembrete\` - Lembretes\n` +
+        `• ${hot('/pdf')}📋 \`/pdf\` - Gerar PDF\n` +
+        `• ${hot('/google')}🔎 \`/google\` - Pesquisar\n\n` +
+        '📚 *Conhecimento*\n' +
+        `• ${hot('/conhecimento')}📚 \`/conhecimento\` - Base de dados IA\n` +
+        `• ${hot('/kb:stats')}📈 \`/kb:stats\` - Estatísticas\n\n` +
+        '🎯 *Marketing*\n' +
+        `• ${hot('/marketing')}📊 \`/marketing\` - Estratégias\n` +
+        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n\n` +
+        '💡 *Ou escreva qualquer coisa para conversar!*',
         { parse_mode: 'Markdown' }
       );
-    });
+    };
+
+    // Método para mostrar menu USUÁRIO
+    this.showUserMenu = async (chatId, userName) => {
+      const hot = (cmd) => this.hotCommands.includes(cmd) ? '🔥 ' : '';
+      
+      await this.bot.sendMessage(chatId,
+        `🤖 *Olá ${userName}! Bem-vindo à OlympIA*\n` +
+        'Sua IA inteligente com superpoderes\n\n' +
+        '✨ *Criatividade com IA*\n' +
+        `• ${hot('/gerar')}💡 \`/gerar\` - Criar ideias geniais\n` +
+        `• ${hot('/analisar')}🔍 \`/analisar\` - Análise profunda\n` +
+        `• ${hot('/keywords')}🎯 \`/keywords\` - Palavras-chave\n` +
+        `• ${hot('/imagem')}🎭 \`/imagem\` - Gerar imagens\n` +
+        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n\n` +
+        '🛠️ *Ferramentas*\n' +
+        `• ${hot('/traduzir')}🌍 \`/traduzir\` - Tradução\n` +
+        `• ${hot('/senha')}🔐 \`/senha\` - Gerar senha\n` +
+        `• ${hot('/morse')}📡 \`/morse\` - Código Morse\n` +
+        `• ${hot('/noticias')}📰 \`/noticias\` - Notícias\n` +
+        `• ${hot('/falar')}🎙️ \`/falar\` - Text-to-Speech\n` +
+        `• ${hot('/ocr')}📸 \`/ocr\` - Extrair texto\n` +
+        `• ${hot('/email')}✉️ \`/email\` - Enviar email\n` +
+        `• ${hot('/lembrete')}⏰ \`/lembrete\` - Lembretes\n` +
+        `• ${hot('/pdf')}📋 \`/pdf\` - Gerar PDF\n` +
+        `• ${hot('/google')}🔎 \`/google\` - Pesquisar\n\n` +
+        '📚 *Conhecimento*\n' +
+        `• ${hot('/conhecimento')}📚 \`/conhecimento\` - Base de dados IA\n` +
+        `• ${hot('/kb:stats')}📈 \`/kb:stats\` - Estatísticas\n\n` +
+        '🎯 *Marketing*\n' +
+        `• ${hot('/marketing')}📊 \`/marketing\` - Estratégias\n` +
+        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n\n` +
+        '💡 *Ou escreva qualquer coisa para conversar!*',
+        { parse_mode: 'Markdown' }
+      );
+    };
 
     // Comando /ia - Mostrar comandos de IA
     this.bot.onText(/\/ia/, (msg) => {
@@ -1381,7 +1450,7 @@ Se você inverte, ninguém mais confia em você.
       );
     });
 
-    // Mensagens gerais (sem comando)
+    // Mensagens gerais (sem comando) - Chat Humanizado
     this.bot.on('message', async (msg) => {
       // Ignora se for um comando
       if (msg.text && msg.text.startsWith('/')) {
@@ -1393,38 +1462,118 @@ Se você inverte, ninguém mais confia em você.
 
       if (!text) return;
 
-      await this.bot.sendMessage(chatId, '⚡ Processando sua mensagem...');
+      // Verificar se é processo de registro
+      if (this.userRegistration[chatId]) {
+        const regData = this.userRegistration[chatId];
+        
+        if (regData.step === 'name') {
+          // Salvar nome e pedir email
+          regData.name = text;
+          regData.step = 'email';
+          return this.bot.sendMessage(chatId, 
+            `Prazer, *${text}*! 😊\n\n` +
+            '📧 *Qual é o seu email?*\n' +
+            '_Usaremos para relatórios e recuperação de conta_',
+            { parse_mode: 'Markdown' }
+          );
+        } else if (regData.step === 'email') {
+          // Validar email e registrar
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(text)) {
+            return this.bot.sendMessage(chatId, 
+              '❌ Email inválido.\n\n' +
+              'Por favor, digite um email válido:',
+              { parse_mode: 'Markdown' }
+            );
+          }
+          
+          try {
+            // Registrar usuário
+            await registerUser(regData.name, text, chatId);
+            await loginUser(chatId);
+            
+            delete this.userRegistration[chatId];
+            
+            await this.bot.sendMessage(chatId, 
+              '✅ *Cadastro concluído com sucesso!*\n\n' +
+              `Bem-vindo, ${regData.name}! 🎉`,
+              { parse_mode: 'Markdown' }
+            );
+            
+            // Mostrar menu de usuário
+            await this.showUserMenu(chatId, regData.name);
+          } catch (error) {
+            console.error('Erro ao registrar:', error);
+            delete this.userRegistration[chatId];
+            return this.bot.sendMessage(chatId, '❌ Erro ao registrar. Use /start para tentar novamente.');
+          }
+          return;
+        }
+      }
+
+      // Chat humanizado padrão
+      const thinkingMsg = await this.bot.sendMessage(chatId, '💭 Pensando...');
 
       try {
         if (!this.mcpClient) {
           await this.connectMCP();
         }
 
-        // Sistema de detecção de contexto para sugerir comandos
-        let prompt = text;
+        // Timeout de 30 segundos para respostas
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout: Resposta demorou mais de 30s')), 30000);
+        });
+
+        // Prompt para respostas curtas e humanizadas
+        let prompt = `Você é OlympIA, uma assistente virtual amigável e prestativa. ` +
+          `Responda de forma CURTA (máximo 3 linhas), humanizada e natural. ` +
+          `Se identificar que o usuário precisa de um comando específico, sugira de forma sutil. ` +
+          `\n\nUsuário: ${text}`;
+        
+        // Sistema de detecção para sugerir comandos
         let sugestao = '';
         
         if (text.toLowerCase().includes('gerar') || text.toLowerCase().includes('criar')) {
-          sugestao = '\n\n💡 *Dica:* Use `/gerar` para criar conteúdo específico!';
+          sugestao = '\n\n💡 Quer criar algo específico? Use `/gerar`';
         } else if (text.toLowerCase().includes('pesquisa') || text.toLowerCase().includes('buscar')) {
-          sugestao = '\n\n💡 *Dica:* Use `/google <busca>` para pesquisar na internet!';
+          sugestao = '\n\n💡 Para pesquisar: `/google`';
         } else if (text.toLowerCase().includes('traduzir')) {
-          sugestao = '\n\n💡 *Dica:* Use `/traduzir <idioma> <texto>` para traduzir!';
+          sugestao = '\n\n💡 Para traduzir: `/traduzir`';
         } else if (text.toLowerCase().includes('imagem') || text.toLowerCase().includes('desenho')) {
-          sugestao = '\n\n💡 *Dica:* Use `/imagem <descrição>` para gerar imagens!';
+          sugestao = '\n\n💡 Para criar imagem: `/imagem`';
         } else if (text.toLowerCase().includes('análise')) {
-          sugestao = '\n\n💡 *Dica:* Use `/analisar <texto>` para análise profunda!';
+          sugestao = '\n\n💡 Para análise: `/analisar`';
         }
         
-        const result = await this.mcpClient.callTool({
+        // Race entre timeout e resposta da IA
+        const responsePromise = this.mcpClient.callTool({
           name: 'olympia_reasoning',
           arguments: { prompt: prompt }
         });
 
+        const result = await Promise.race([responsePromise, timeoutPromise]);
+
         const response = result.content[0].text;
+        
+        // Deletar mensagem "Pensando..."
+        await this.bot.deleteMessage(chatId, thinkingMsg.message_id);
+        
         await this.bot.sendMessage(chatId, response + sugestao);
       } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+        // Deletar mensagem "Pensando..." em caso de erro
+        try {
+          await this.bot.deleteMessage(chatId, thinkingMsg.message_id);
+        } catch {}
+        
+        if (error.message.includes('Timeout')) {
+          await this.bot.sendMessage(chatId, 
+            '⏱️ *Ops! Demorei demais...*\n\n' +
+            'A resposta está demorando mais que o esperado. Tente novamente ou use um comando específico! 😊',
+            { parse_mode: 'Markdown' }
+          );
+        } else {
+          await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+        }
       }
     });
 
@@ -1859,6 +2008,29 @@ Se você inverte, ninguém mais confia em você.
         { parse_mode: 'Markdown' }
       );
     });
+
+    // 👑 ADMINISTRAÇÃO - Inicializar sistema de admin
+    console.log('🔐 Inicializando sistema administrativo...');
+    try {
+      // Configurar comando /info para admins
+      setupAdminInfoCommand(this.bot);
+      console.log('✅ Painel Admin (/info) ativado');
+
+      // Inicializar relatórios diários (05:00)
+      initializeDailyReportSchedule(this.bot);
+      console.log('✅ Relatórios automáticos agendados (05:00 diariamente)');
+
+      // Verificar integridade do banco
+      const db = await import('better-sqlite3').then(m => new m.default('./database.sqlite'));
+      adminSecurity.verifyDatabaseIntegrity(db);
+      console.log('✅ Integridade do banco verificada');
+
+      // Limpar logs antigos (>90 dias)
+      adminSecurity.cleanOldLogs();
+      console.log('✅ Logs de auditória limpos');
+    } catch (error) {
+      console.error('⚠️  Erro ao inicializar sistema admin:', error.message);
+    }
 
     console.log('🤖 Bot do Telegram iniciado!');
     console.log('⚠️  Certifique-se de ter configurado o TELEGRAM_TOKEN');

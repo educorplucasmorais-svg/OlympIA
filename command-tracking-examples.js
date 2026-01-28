@@ -7,6 +7,10 @@
 
 import commandTracker from './command-tracker.js';
 import reportGenerator from './report-generator.js';
+import { 
+  getMostUsedCommands,
+  generateCompleteReport
+} from './database.js';
 
 /**
  * EXEMPLO 1: Rastreamento Manual (Controle Total)
@@ -253,7 +257,6 @@ export function setupPerformanceTracking(bot) {
 
     try {
       // Obter dados
-      import { getMostUsedCommands } from './database.js';
       const topCommands = getMostUsedCommands(10, 30);
 
       // Gerar análise
@@ -297,7 +300,6 @@ export function setupDashboardEndpoints(bot) {
     );
 
     try {
-      import { generateCompleteReport } from './database.js';
       const report = generateCompleteReport(30);
       
       // Aqui você pode:
