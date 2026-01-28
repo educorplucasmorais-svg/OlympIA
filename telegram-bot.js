@@ -56,17 +56,50 @@ const conversations = {};
 const reminders = {};
 const userFavorites = {}; // Favoritos dos usuários
 
-// 🌟 HOT COMMANDS - Mais Utilizados
+// 🔥 HOT COMMANDS - Mais Utilizados
 const HOT_COMMANDS = [
-  { name: '/gerar', emoji: '✨', desc: 'Gerar conteúdo criativo com IA', category: 'IA' },
-  { name: '/imagem', emoji: '🎨', desc: 'Gerar imagem 1024x1024px', category: 'IA' },
-  { name: '/pdf', emoji: '📄', desc: 'Gerar PDF com conteúdo', category: 'Utilidades' },
-  { name: '/promocao', emoji: '📢', desc: '5 posts prontos para redes sociais', category: 'Marketing' },
-  { name: '/email', emoji: '📧', desc: 'Enviar email via Gmail', category: 'Utilidades' },
-  { name: '/marketing', emoji: '📊', desc: 'Estratégia SEO e Marketing', category: 'Marketing' },
-  { name: '/conhecimento', emoji: '🧠', desc: 'Busca na base de conhecimento com RAG', category: 'IA' },
-  { name: '/chat', emoji: '💬', desc: 'Chat com memória de contexto', category: 'IA' }
+  { name: '/gerar', emoji: '🔥✨', desc: 'Gerar conteúdo criativo com IA', category: 'IA' },
+  { name: '/imagem', emoji: '🔥🎨', desc: 'Gerar imagem 1024x1024px', category: 'IA' },
+  { name: '/pdf', emoji: '🔥📄', desc: 'Gerar PDF com conteúdo', category: 'Utilidades' },
+  { name: '/promocao', emoji: '🔥📢', desc: '5 posts prontos para redes sociais', category: 'Marketing' },
+  { name: '/email', emoji: '🔥📧', desc: 'Enviar email via Gmail', category: 'Utilidades' },
+  { name: '/marketing', emoji: '🔥📊', desc: 'Estratégia SEO e Marketing', category: 'Marketing' },
+  { name: '/conhecimento', emoji: '🔥🧠', desc: 'Busca na base de conhecimento com RAG', category: 'IA' },
+  { name: '/chat', emoji: '🔥💬', desc: 'Chat com memória de contexto', category: 'IA' }
 ];
+
+// 🎨 ÍCONES CUSTOMIZADOS - Humanizados para cada comando
+const COMMAND_ICONS = {
+  '/gerar': '⚡️✍️',      // Relâmpago + Escrita (Criação rápida)
+  '/analisar': '🔍📊',    // Lupa + Gráfico (Análise profunda)
+  '/keywords': '🎯🔑',    // Alvo + Chave (Keywords estratégicas)
+  '/imagem': '🎭🖼️',      // Máscara + Quadro (Criatividade visual)
+  '/chat': '💭🤖',        // Pensamento + IA (Conversação inteligente)
+  '/traduzir': '🌍🗣️',    // Mundo + Fala (Tradução global)
+  '/senha': '🔐🛡️',       // Cadeado + Escudo (Segurança)
+  '/morse': '📡⚙️',       // Antena + Engrenagem (Código técnico)
+  '/noticias': '📰🌟',    // Jornal + Estrela (Notícias fresquinhas)
+  '/falar': '🎙️🔊',      // Microfone + Som (Áudio)
+  '/ocr': '📸👁️',        // Câmera + Olho (Visão)
+  '/email': '✉️💌',       // Carta + Amor (Mensagem pessoal)
+  '/lembrete': '⏰🔔',    // Relógio + Sino (Alerta)
+  '/pdf': '📋✔️',         // Documento + OK (Profissional)
+  '/google': '🔎🌐',      // Busca + Internet (Pesquisa)
+  '/conhecimento': '📚💡', // Livro + Ideia (Conhecimento)
+  '/kb:stats': '📈🎲',    // Gráfico + Dados (Estatísticas)
+  '/marketing': '🎯💰',   // Alvo + Dinheiro (Estratégia)
+  '/promocao': '🎉🎁',    // Festa + Presente (Promoção)
+  '/social': '👥🌐',      // Povo + Rede (Social)
+  '/vip': '👑⭐',         // Coroa + Estrela (VIP Premium)
+  '/favoritos': '💖🌹',   // Coração + Rosa (Favoritos)
+  '/skills': '🧩🎓',      // Quebra-cabeça + Diploma (Skills)
+  '/start': '🚀🎯',       // Foguete + Alvo (Início)
+  '/ajuda': '🤝📖',       // Mãos + Manual (Ajuda)
+  '/ia': '🤖💭',          // IA + Pensamento
+  '/utilidades': '🛠️⚙️',  // Ferramentas + Engrenagem
+  '/info': '📱ℹ️',        // Telefone + Info
+  '/casa': '🏠💡'         // Casa + Lâmpada (Smart Home)
+};
 
 class TelegramOlympIA {
   constructor() {
@@ -99,54 +132,49 @@ class TelegramOlympIA {
   }
 
   setupBot() {
-    // Comando /start
+    // Comando /start - Bem-vindo à OlympIA
     this.bot.onText(/\/start/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId, 
-        '🤖 *Olá! Eu sou a OlympIA!*\n' +
-        'Bot de Automação IA para Telegram com 22 comandos\n\n' +
+        '🤖 *Opa! Bem-vindo à OlympIA!* 👋\n' +
+        'Sua IA inteligente com 22 superpoderes no Telegram\n\n' +
         
-        '🧠 *IA & Criatividade* (5 comandos)\n' +
-        '• `/gerar` - Gerar textos, analisar, chat com memória\n' +
-        '• `/analisar` - Análise profunda com IA\n' +
-        '• `/keywords` - Extrai palavras-chave SEO\n' +
-        '• `/imagem` - Gera imagem 1024x1024px\n' +
-        '• `/chat` - Chat com memoria de contexto\n\n' +
+        '⚡️✍️ *Criatividade com IA* (5 comandos)\n' +
+        '• 🔥 `/gerar` - Criar ideias geniais em segundos\n' +
+        '• 🔍📊 `/analisar` - Entender tudo profundamente\n' +
+        '• 🎯🔑 `/keywords` - Palavras que vendem\n' +
+        '• 🔥🎭 `/imagem` - Visualizar sonhos em pixels\n' +
+        '• 🔥💭 `/chat` - Conversa que entende você\n\n' +
         
-        '🛠️ *Utilidades* - Ferramentas (10 comandos)\n' +
-        '• `/traduzir` - Traduz para qualquer idioma\n' +
-        '• `/senha` - Gera senha segura (8-128 chars)\n' +
-        '• `/morse` - Converte para codigo Morse\n' +
-        '• `/noticias` - Busca noticias em tempo real\n' +
-        '• `/falar` - Converte texto em audio MP3\n' +
-        '• `/ocr` - Extrai texto de imagens (foto)\n' +
-        '• `/email` - Envia email via Gmail\n' +
-        '• `/lembrete` - Agenda lembretes (m/h/d)\n' +
-        '• `/pdf` - Gera PDF com conteúdo\n' +
-        '• `/google` - Pesquisa no Google\n\n' +
+        '🛠️ *Superpoderes* - 10 Ferramentas Incríveis\n' +
+        '• 🌍🗣️ `/traduzir` - Fale qualquer idioma\n' +
+        '• 🔐🛡️ `/senha` - Segurança de primeiro nível\n' +
+        '• 📡⚙️ `/morse` - Código secreto clássico\n' +
+        '• 📰🌟 `/noticias` - Notícias fresquinhas\n' +
+        '• 🎙️🔊 `/falar` - Transforme texto em voz\n' +
+        '• 📸👁️ `/ocr` - Ler textos em fotos\n' +
+        '• 🔥✉️ `/email` - Envie mensagens de impacto\n' +
+        '• ⏰🔔 `/lembrete` - Nunca se esqueça de nada\n' +
+        '• 🔥📋 `/pdf` - Documentos profissionais\n' +
+        '• 🔎🌐 `/google` - Pesquise o mundo\n\n' +
         
-        '🏠 */casa* - Casa Inteligente (5 comandos)\n' +
-        '• Controlar luzes, sons, automações\n\n' +
+        '🏠 *Casa Inteligente* (5 comandos)\n' +
+        '• Controle luzes, sons, automações\n\n' +
         
-        '📱 *Pesquisa & Comunicacao* (3 comandos)\n' +
-        '• `/google` - Pesquisa no Google, retorna links\n' +
-        '• `/start` - Inicia o bot e mostra menu\n' +
-        '• `/ajuda` - Mostra guia completo de uso\n\n' +
+        '📚 *Conhecimento Personalizado*\n' +
+        '• 🔥📚 `/conhecimento` - Sua base de dados inteligente\n' +
+        '• 📈🎲 `/kb:stats` - Veja o que você aprendeu\n\n' +
         
-        '🧠 *Base de Conhecimento*\n' +
-        '• `/conhecimento` - Busca na base de conhecimento\n' +
-        '• `/kb:stats` - Mostra estatísticas da base\n\n' +
+        '🎯 *Marketing & Crescimento*\n' +
+        '• 🔥📊 `/marketing` - Domine redes sociais\n' +
+        '• 🔥🎉 `/promocao` - Posts que vendem\n\n' +
         
-        '📊 *Marketing & SEO* (2 comandos)\n' +
-        '• `/marketing` - Estratégia SEO, Marketing e Redes Sociais 📱\n' +
-        '• `/promocao` - Gera 5 posts prontos para compartilhar 📢\n\n' +
+        '👥 *Social Media & Favoritos* ⭐ NOVO\n' +
+        '• 👥🌐 `/social` - Estratégia viral completa\n' +
+        '• 🔥👑 `/vip` - Os 8 comandos mais quentes\n' +
+        '• 💖🌹 `/favoritos` - Seus atalhos especiais\n\n' +
         
-        '🌟 *Social Media & Favoritos* (3 NOVOS!)\n' +
-        '• `/social` - Estratégia de redes sociais 🌐\n' +
-        '• `/vip` - Hot Commands (mais utilizados) ⭐\n' +
-        '• `/favoritos` - Gerenciar seus favoritos 💖\n\n' +
-        
-        '💡 *Ou envie qualquer texto para IA responder!*',
+        '💡 *Ou simplesmente me escreva algo e vou responder!*',
         { parse_mode: 'Markdown' }
       );
     });
@@ -200,276 +228,381 @@ class TelegramOlympIA {
       );
     });
 
-    // 🧠 Comando /conhecimento - Buscar na base de conhecimento
+    // 📚 Comando /conhecimento - Buscar na base de conhecimento
     this.bot.onText(/\/conhecimento (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
       const query = match[1];
+      const emoji = COMMAND_ICONS['/conhecimento'];
       
-      await this.bot.sendMessage(chatId, '🔍 Buscando na base de conhecimento...');
+      await this.bot.sendMessage(chatId, `${emoji} *Deixa eu mergulhar na minha base de conhecimento...*`);
       
       try {
         const result = await knowledgeBase.answerQuestion(query);
         
         if (result.hasContext) {
-          let response = `🧠 *Resposta da Base de Conhecimento:*\n\n${result.answer}`;
+          let response = `${emoji} *Encontrei essa resposta:*\n\n━━━━━━━━━━━━━━━━━━━━━━\n${result.answer}\n━━━━━━━━━━━━━━━━━━━━━━`;
           
           if (result.sources && result.sources.length > 0) {
-            response += `\n\n📚 *Fontes consultadas:* ${result.sources.length} documento(s)`;
+            response += `\n\n📚 *${result.sources.length} documento(s) consultado(s)*`;
           }
           
           await this.bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else {
           await this.bot.sendMessage(chatId, 
-            '❌ ' + result.answer + '\n\n' +
-            '💡 *Dica:* Adicione documentos com `/knowledge:load`'
+            `${emoji} *Ops! Não encontrei nada sobre isso na minha base.*\n\n` +
+            '💡 *Que tal:*\n' +
+            '• Tentar uma pergunta diferente?\n' +
+            '• Adicionar documentos com `/knowledge:load`?\n' +
+            '• Usar `/chat` para conversa livre?',
+            { parse_mode: 'Markdown' }
           );
         }
       } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+        await this.bot.sendMessage(chatId, 
+          `${emoji} *Deu ruim aqui...*\n\n❌ ${error.message}\n\nTenta de novo? 🤔`,
+          { parse_mode: 'Markdown' }
+        );
       }
     });
 
     // 📊 Comando /kb:stats - Estatísticas da base
     this.bot.onText(/\/kb:stats/, async (msg) => {
       const chatId = msg.chat.id;
+      const emoji = COMMAND_ICONS['/conhecimento'];
       
       try {
         const stats = await knowledgeBase.getStats();
         
         if (stats && !stats.error) {
           await this.bot.sendMessage(chatId,
-            `📊 *Estatísticas da Base de Conhecimento:*\n\n` +
+            `${emoji} *Aqui está o status da minha base de conhecimento:*\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━\n` +
             `📚 Total de documentos: ${stats.totalDocuments}\n` +
             `🗃️ Coleção: ${stats.collectionName}\n` +
-            `✅ Status: ${stats.initialized ? 'Inicializada' : 'Não inicializada'}`,
+            `✅ Status: ${stats.initialized ? '🟢 Pronta para usar!' : '⚪ Ainda vazia'}\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━`,
             { parse_mode: 'Markdown' }
           );
         } else {
-          await this.bot.sendMessage(chatId, '❌ Base ainda não inicializada. Use `/conhecimento <pergunta>` primeiro.');
+          await this.bot.sendMessage(chatId, 
+            `${emoji} *Minha base ainda está vazia!*\n\n` +
+            'Use `/conhecimento <pergunta>` para começar!',
+            { parse_mode: 'Markdown' }
+          );
         }
       } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+        await this.bot.sendMessage(chatId, 
+          `${emoji} *Erro ao carregar estatísticas:*\n\n${error.message}`,
+          { parse_mode: 'Markdown' }
+        );
       }
     });
 
-    // 📱 Comando /marketing - Dicas de SEO, Marketing e Mídias Sociais
+    // 🎯 Comando /marketing - Dicas de SEO, Marketing e Mídias Sociais
     this.bot.onText(/\/marketing/, (msg) => {
       const chatId = msg.chat.id;
-      const marketingGuide = `🎯 *ESTRATÉGIA DE MARKETING & SEO PARA OLYMPIA*
+      const emoji = COMMAND_ICONS['/marketing'];
+      const marketingGuide = `${emoji} *DOMINAR MARKETING É ASSIM: FÓRMULA FUNCIONA!*
 
-*🔍 SEO - Otimização para Buscas*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-📌 Palavras-chave principais:
+*🔍 SEO - A Base de Tudo (Não Ignora Isso!)*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 *Palavras-chave que FUNCIONAM:*
    • Inteligência Artificial
-   • OlympIA
-   • Produtividade
-   • Conteúdo de Qualidade
-   • Análise de Dados
    • Automação de Tarefas
+   • Produtividade com IA
+   • OlympIA Bot
+   • Geração de Conteúdo IA
+   • Análise de Dados Automática
 
-📝 Meta descrição:
-"Conheça a OlympIA, a inteligência artificial que está revolucionando a forma como trabalhamos. Aprenda como a OlympIA pode ajudá-lo a aumentar a produtividade e criar conteúdo de alta qualidade."
+📝 *Meta Descrição Que Vende:*
+"OlympIA: A IA que trabalha PARA você. Aumenta produtividade em 300%. Teste grátis no Telegram!"
 
-📄 Título da página:
-"Conheça a OlympIA: A Inteligência Artificial que Está Revolucionando a Forma como Trabalhamos!"
+🏆 *Título que Clica:*
+"OlympIA - A IA Que Todos Estão Usando Para Trabalhar Menos (E Ganhar Mais)"
 
-*📱 MARKETING & REDES SOCIAIS*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Compartilhe em suas redes sociais
-   • LinkedIn - Foco profissional/produtividade
-   • Twitter - Atualizações e novidades
-   • Instagram - Conteúdo visual e tips
-   • WhatsApp - Compartilhe com grupos
+*📊 REGRA DE OURO (Sério mesmo!)*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🟢 80% VALOR = Dicas, guias, conhecimento gratuito
+🔴 20% VENDA = Chamar pra testar OlympIA
 
-#️⃣ Hashtags estratégicas:
-   #OlympIA #IA #InteligenciaArtificial
-   #Automacao #Produtividade #Tech
-   #Marketing #SEO #IA2026
+Se você inverte, ninguém mais confia em você.
 
-👥 Engajamento:
-   • Peça aos amigos e colegas para compartilhar
-   • Ofereça demonstração gratuita
-   • Crie conteúdo sobre casos de uso
-   • Responda comentários rapidamente
+*📱 REDES SOCIAIS - Estratégia por Plataforma*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔵 *LinkedIn* (Profissionais que PAGAM):
+   ✍️ Posts longos (1000+ caracteres)
+   📊 Conteúdo educativo sobre IA
+   💼 Cases de sucesso
+   ⏰ Terça-Quinta 9-11h (café na mão)
 
-🎁 Ofereça:
-   • Teste grátis de 7 dias
-   • Webinar gratuito sobre IA
-   • E-book: "Guia de IA para Produtividade"
-   • Consultoria inicial grátis
+📷 *Instagram* (Viraliza com Reels):
+   🎬 REELS sobre tips de produtividade
+   📸 Screenshots de funcionalidades
+   📝 Carousel sobre IA
+   ⏰ 19-21h (depois do trabalho)
 
-💡 Dica: Use /promocao para gerar posts prontos!`;
+🐦 *Twitter/X* (Tendências & Novidades):
+   💬 Tweets curtos e diretos
+   🔗 Threads explicativas
+   🔥 Retweet com comentário inteligente
+   ⏰ 08-10h ou 18-20h
+
+💬 *WhatsApp* (Pessoal & Confiança):
+   👋 Grupos de interesse
+   🎁 Links de teste grátis
+   📣 Compartilhamentos virais
+   ⏰ Qualquer hora (sempre ativo)
+
+*#️⃣ HASHTAGS QUE FUNCIONAM*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#OlympIA #IA #InteligenciaArtificial
+#Automacao #Produtividade #TechBrasil
+#Marketing #SEO #Inovacao #AI #Startup
+
+*👥 ENGAJAMENTO - ISSO FUNCIONA*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Responda comentários em até 2 horas
+✅ Use call-to-action claro ("Teste agora!")
+✅ Crie conteúdo que RESSONHA com o público
+✅ Compartilhe vitórias dos usuários
+✅ Faça colabs com influenciadores
+✅ Crie comunidade (grupo no Telegram!)
+
+*🎁 OFERTAS QUE VENDEM*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏆 Teste grátis ILIMITADO
+🏆 Webinar ao vivo sobre IA (semanal)
+🏆 E-book grátis: "IA para Iniciantes"
+🏆 Consultoria 1-on-1 (primeiros 15 min grátis)
+🏆 Desconto para amigos que você indica
+
+*💰 MONETIZAÇÃO - Plano Realista*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🥉 Tier 1: Básico (GRÁTIS - ganhe confiança)
+🥈 Tier 2: Plus ($9/mês - valor real)
+🥇 Tier 3: Premium ($29/mês - profissionais)
+💎 Tier 4: Enterprise (consulte)
+
+*📈 MÉTRICAS QUE IMPORTAM*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Taxa de clique (>3% é bom)
+👁️ Taxa de conversão (>5% é EXCELENTE)
+❤️ Engajamento (comentários > likes)
+🔗 Compartilhamentos (melhor métrica!)
+📱 Crescimento seguidores (não fake!)
+
+💡 *Dica Final: Use /promocao e /social para gerar conteúdo estratégico! 🚀*`;
 
       this.bot.sendMessage(chatId, marketingGuide, { parse_mode: 'Markdown' });
     });
 
-    // 📢 Comando /promocao - Gera posts prontos para compartilhar
+    // 🎉 Comando /promocao - Gera posts prontos para compartilhar
     this.bot.onText(/\/promocao/, async (msg) => {
       const chatId = msg.chat.id;
-      const posts = [
-        `🤖 *POST 1 - LinkedIn/Profissional*
-"Cansado de tarefas repetitivas? A OlympIA é uma inteligência artificial revolucionária que aumenta sua produtividade em até 300%! 🚀
-
-✨ Com a OlympIA você pode:
-• Gerar conteúdo criativo em segundos
-• Analisar dados complexos
-• Automatizar tarefas rotineiras
-• Extrair insights com IA
-
-Teste grátis agora! Acesse: [link do seu bot]
-
-#IA #Automação #Produtividade #OlympIA"`,
-
-        `🤖 *POST 2 - Instagram/Visual*
-"Revolucione seu workflow com OlympIA ✨🤖
-
-A IA que entende você e trabalha com você!
-
-✅ 17 comandos poderosos
-✅ Análise profunda em segundos
-✅ Criação de conteúdo automática
-✅ Compatível com Telegram
-
-Experimente GRÁTIS agora! 🚀
-
-#OlympIA #IA #Tech #Inovação"`,
-
-        `🤖 *POST 3 - Twitter/Rápido*
-"OlympIA: A inteligência artificial que transforma sua produtividade 🚀
-
-17 comandos poderosos de IA
-📊 Análise de dados
-✍️ Criação de conteúdo
-🎨 Geração de imagens
-🔍 SEO e Keywords
-
-Teste GRÁTIS via Telegram! 🤖✨
-
-#IA #OlympIA #Automação"`,
-
-        `🤖 *POST 4 - WhatsApp/Casual*
-"Ei! 👋 Descobri uma IA INCRÍVEL chamada OlympIA 🤖
-
-Ela faz TUDO:
-✅ Gera conteúdo
-✅ Analisa textos
-✅ Cria imagens
-✅ Traduz
-✅ E muito mais!
-
-Melhor? É GRÁTIS no Telegram! 🚀
-
-Quer testar? Me manda msg que eu mando o link! 😎"`,
-
-        `🤖 *POST 5 - Blog/Artigo*
-"Como OlympIA Está Mudando a Forma Como Trabalhamos
-
-A inteligência artificial deixou de ser ficção científica e virou realidade no seu Telegram.
-
-OlympIA é uma IA revolucionária que oferece 17 comandos poderosos para aumentar sua produtividade, desde geração de conteúdo até análise de dados complexos.
-
-Neste artigo, exploraremos como você pode aproveitar o poder da IA para transformar seu trabalho diário.
-
-[Conteúdo detalhado...]
-
-#OlympIA #IA #Futurismo"`
-      ];
-
-      // Enviar posts em sequência
-      for (let i = 0; i < posts.length; i++) {
-        setTimeout(() => {
-          this.bot.sendMessage(chatId, posts[i], { parse_mode: 'Markdown' });
-        }, 500 * (i + 1));
-      }
+      const emoji = COMMAND_ICONS['/promocao'];
+      
+      // Mensagem inicial
+      await this.bot.sendMessage(chatId, 
+        `${emoji} *Pronto! Tenho 5 posts incríveis para você dominar as redes!*\n\n` +
+        `📱 Cada um com um estilo diferente - copie, adapte e compartilhe! 🚀`
+      );
+      
+      setTimeout(() => {
+        this.bot.sendMessage(chatId, 
+          `1️⃣ *POST LINKEDIN - Profissional & Elegante*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `"Cansado de tarefas repetitivas? 🙋‍♂️\n\n` +
+          `A OlympIA é uma inteligência artificial que REALMENTE aumenta produtividade!\n\n` +
+          `✨ Com OlympIA você consegue:\n` +
+          `• Gerar conteúdo criativo em SEGUNDOS ⚡\n` +
+          `• Analisar dados complexos automaticamente 📊\n` +
+          `• Automatizar tarefas rotineiras 🤖\n` +
+          `• Extrair insights com IA 🧠\n\n` +
+          `💡 Resultado? Mais tempo para o que REALMENTE importa.\n\n` +
+          `Teste grátis agora! 🚀\n\n` +
+          `#IA #Automação #Produtividade #OlympIA #Trabalhoflexível"`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 600);
+      
+      setTimeout(() => {
+        this.bot.sendMessage(chatId, 
+          `2️⃣ *POST INSTAGRAM - Visual & Viral*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `✨ Conhece OlympIA? A IA que REALMENTE funciona! 🤖\n\n` +
+          `🔥 O que faz dela especial:\n` +
+          `✅ 22 comandos de IA (não é brincadeira)\n` +
+          `✅ Análise de dados em tempo real\n` +
+          `✅ Criação de conteúdo que vende\n` +
+          `✅ Geração de imagens 1024x1024\n\n` +
+          `💬 Compatível com Telegram (aquele app que você SEMPRE usa)\n\n` +
+          `🎁 Quanto custa? NADA! Teste grátis hoje!\n\n` +
+          `Botão na bio! ⬆️\n\n` +
+          `#OlympIA #IA #Tecnologia #Produtividade #FuturoÉHoje"`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 1200);
+      
+      setTimeout(() => {
+        this.bot.sendMessage(chatId, 
+          `3️⃣ *POST TWITTER - Curto & Direto*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `🚀 OlympIA: A IA que não decepciona\n\n` +
+          `22 comandos poderosos:\n` +
+          `📝 Geração de conteúdo\n` +
+          `📊 Análise de dados\n` +
+          `🖼️ Criação de imagens\n` +
+          `🌍 Tradução automática\n` +
+          `🔍 SEO & Keywords\n` +
+          `+ muito mais!\n\n` +
+          `Está GRÁTIS no Telegram 🤖\n\n` +
+          `Teste agora! Link na bio 👆\n\n` +
+          `#IA #OlympIA #OpenAI #NeuralWeek #FuturaçãoDigital"`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 1800);
+      
+      setTimeout(() => {
+        this.bot.sendMessage(chatId, 
+          `4️⃣ *POST WHATSAPP - Casual & Amigável*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `Ei! 👋 Descobri algo ABSURDO! 🤯\n\n` +
+          `Existe uma IA no Telegram chamada OlympIA que faz LITERALMENTE TUDO:\n\n` +
+          `✅ Gera textos (como se fosse você)\n` +
+          `✅ Cria imagens (tipo um artista)\n` +
+          `✅ Traduz idiomas (inglês, espanhol, tudo!)\n` +
+          `✅ Analisa documentos (PDF inteiro em 2s)\n` +
+          `✅ Faz videos com voz (ficção científica?)\n` +
+          `✅ E TEM MUITO MAIS!\n\n` +
+          `💰 Melhor parte? É TOTALMENTE GRÁTIS!\n\n` +
+          `Quer testar? Vou mandar o link! 🤖\n\n` +
+          `Confia em mim, você vai se apaixonar 💕"`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 2400);
+      
+      setTimeout(() => {
+        this.bot.sendMessage(chatId, 
+          `5️⃣ *POST BLOG/EMAIL - Detalhado & Profundo*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `"A Revolução da IA no Seu Telegram: Conheça OlympIA"\n\n` +
+          `A inteligência artificial deixou de ser um sonho de ficção científica e virou realidade NA PALMA DA SUA MÃO.\n\n` +
+          `OlympIA é mais que um bot. É um assistente inteligente que combina o poder de IA de ponta com simplicidade.\n\n` +
+          `🎯 Por que você deveria se importar?\n\n` +
+          `Em um mundo onde o tempo é ouro, desperdiçar horas em tarefas repetitivas é INACEITÁVEL.\n\n` +
+          `OlympIA resolve isso com 22 comandos que automatizam 90% dos seus trabalhos criativos:\n\n` +
+          `• Redação inteligente que parece humana\n` +
+          `• Análise de dados que REALMENTE faz sentido\n` +
+          `• Criação de imagens profissionais\n` +
+          `• E mais 19 recursos que vão te deixar boquiaberto\n\n` +
+          `💡 O melhor? Você pode testar AGORA, SEM custos, SEM compromisso.\n\n` +
+          `[Conteúdo pode continuar...]\n\n` +
+          `#IA #Automação #FuturoDoTrabalho #OlympIA"`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 3000);
 
       setTimeout(() => {
         this.bot.sendMessage(chatId, 
-          `✅ *5 Posts gerados com sucesso!*\n\nDica: Adapte os posts para sua audiência específica e compartilhe! 📱\n\nUse hashtags relevantes e incentive o compartilhamento! 🚀`
+          `✅ *Pronto! 5 posts de OURO gerados!* 🎉\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `💡 *Dicas para viralizar:*\n` +
+          `1️⃣ Adapte para sua audiência (se for tech, fala tech!)\n` +
+          `2️⃣ Use hashtags relevantes (mas não exagera)\n` +
+          `3️⃣ Post em horários estratégicos\n` +
+          `4️⃣ Incentive compartilhamentos e comentários\n` +
+          `5️⃣ Responda comentários RÁPIDO (2h máximo)\n\n` +
+          `🚀 Vamos dominar as redes? 🔥`,
+          { parse_mode: 'Markdown' }
         );
-      }, 3500);
+      }, 3600);
     });
 
-    // 🌐 Comando /social - Social Media e Redes Sociais
+    // 👥 Comando /social - Social Media e Redes Sociais
     this.bot.onText(/\/social/, (msg) => {
       const chatId = msg.chat.id;
-      const socialGuide = `🌐 *ESTRATÉGIA DE SOCIAL MEDIA - REDES SOCIAIS*
+      const emoji = COMMAND_ICONS['/social'];
+      const socialGuide = `${emoji} *VAMOS DOMINAR AS REDES SOCIAIS!*
 
-*📱 PLATAFORMAS RECOMENDADAS*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
+*Sou honesta: cada plataforma é um mundo diferente*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔵 *LinkedIn* (Profissional)
-   👥 Público: Executivos, Profissionais
-   📝 Tipo: Posts longos, Artigos, Notícias
-   ⏰ Melhor hora: Terça-Quinta 9-11h
-   💡 Dica: Foque em valor e produtividade
-   Exemplo: "Como IA aumenta produtividade"
+🔵 *LinkedIn* (O lugar dos profissionais)
+   👥 Público: Executivos, CEOs, Profissionais
+   📝 Tipo: Posts longos, Artigos inspiradores, Notícias
+   ⏰ Melhor hora: Terça-Quinta 9-11h (no café ☕)
+   💡 Segredo: Compartilhe conhecimento que você TEM
+   Exemplo: "Como IA aumenta produtividade em 300%"
 
-📷 *Instagram* (Visual)
-   👥 Público: Designers, Criativos, Jovens
-   📝 Tipo: Stories, Reels, Carrouséis
-   ⏰ Melhor hora: 19-21h Seg-Sex
-   💡 Dica: Use imagens atrativas
-   Exemplo: Screenshots de funcionalidades
+📷 *Instagram* (O lugar dos visuais)
+   👥 Público: Designers, Criativos, Jovens, Influencers
+   📝 Tipo: Stories, Reels (MUITO importante!), Carrouséis
+   ⏰ Melhor hora: 19-21h (depois do trabalho)
+   💡 Segredo: Vídeos vendem 80% mais que fotos
+   Exemplo: GIFs de funcionalidades, Dicas visuais
 
-🐦 *Twitter/X* (Trending)
-   👥 Público: Tech, News, Inovação
-   📝 Tipo: Tweets curtos, Threads, RT
-   ⏰ Melhor hora: 08-10h, 18-20h
-   💡 Dica: Participe em trends
-   Exemplo: Comentários sobre IA
+🐦 *Twitter/X* (O lugar das tendências)
+   👥 Público: Programadores, Jornalistas, Tech Nerds
+   📝 Tipo: Tweets curtos, Threads virais, Retweets inteligentes
+   ⏰ Melhor hora: 08-10h (acordando), 18-20h (voltando)
+   💡 Segredo: Participe em trends RELEVANTES
+   Exemplo: Comentários sobre IA, Python, Web3
 
-💬 *WhatsApp* (Pessoal)
-   👥 Público: Amigos, Colegas, Grupos
-   📝 Tipo: Mensagens, Compartilhamentos
-   ⏰ Melhor hora: Qualquer hora
-   💡 Dica: Ofereça algo único
-   Exemplo: Convite para testar
+💬 *WhatsApp* (O lugar do pessoal)
+   👥 Público: Amigos, Colegas, Grupos de interesse
+   📝 Tipo: Mensagens diretas, Compartilhamentos com propósito
+   ⏰ Melhor hora: Qualquer hora! (seu público sempre tá lá)
+   💡 Segredo: Faça as pessoas QUEREREM compartilhar
+   Exemplo: "Ei, descobri algo incrível pra você!"
 
-📰 *Blog/Medium* (Conteúdo)
-   👥 Público: Leitores Engajados
-   📝 Tipo: Artigos, Tutoriais, Guides
-   ⏰ Melhor hora: Qualquer hora (SEO)
-   💡 Dica: Escreva sobre problemas reais
-   Exemplo: "Como usar IA em 2026"
+📰 *Blog/Medium* (O lugar do conhecimento)
+   👥 Público: Pessoas buscando aprender no Google
+   📝 Tipo: Artigos longos, Guias, Tutoriais, Reviews
+   ⏰ Melhor hora: Qualquer hora (Google indexa sempre!)
+   💡 Segredo: Escreva sobre problemas REAIS que as pessoas têm
+   Exemplo: "Guia completo: Usar IA para trabalhar menos"
 
-*📊 MÉTRICAS IMPORTANTES*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 Engajamento = Reações + Comentários + Compartilhamentos
-👁️  Alcance = Quantas pessoas viram
-🔗 Cliques = Quantas acessaram link
-📱 Conversões = Quantas testaram/assinaram
-⏱️  Tempo = Melhor horário para postar
+*📊 O QUE REALMENTE IMPORTA*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 Engajamento = Reações + Comentários + Compartilhamentos (de VERDADE!)
+👁️  Alcance = Quantas pessoas REALMENTE viram (tem bots nisso?)
+🔗 Cliques = Quantas clicaram no link (não é só número bonito)
+🎯 Conversões = Quantas viraram clientes/fãs de VERDADE
+⏱️  Timing = Postar na hora certa é TUDO mesmo
 
-*🎯 DICAS RÁPIDAS*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Poste consistentemente (2-3x semana)
-✅ Use imagens/vídeos (aumenta 80% engajamento)
-✅ Responda comentários rapidamente
-✅ Crie value, não venda direto
-✅ Teste diferentes horários
-✅ Acompanhe suas melhores performances
-✅ Colabore com influenciadores
-✅ Use hashtags relevantes
+*🚀 OURO PURO - DICAS QUE FUNCIONAM*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Poste consistentemente (2-3x semana - não abandone!)
+✅ Vídeos e reels (o algoritmo ADORA)
+✅ Responda comentários em até 2 horas (seja rápido!)
+✅ 80% valor, 20% venda (a regra dourada mesmo)
+✅ Teste horários diferentes (acompanhe suas métricas)
+✅ Analise o que deu certo (nunca ignore dados)
+✅ Colab com quem faz o mesmo (crescimento 10x)
+✅ Hashtags que fazem SENTIDO (não use aleatórios)
+✅ Seja você mesmo (autenticidade SEMPRE vence)
+✅ Qualidade > Quantidade (sempre, sempre, sempre)
 
-*💰 MONETIZAÇÃO*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-📌 Ofertas: Teste grátis, Demo, Webinar
-💎 Tier 1: Básico (free)
-💎 Tier 2: Pro ($9/mês)
-💎 Tier 3: Premium ($29/mês)
-🎁 Referral: 20% comissão
+*💰 MONETIZAÇÃO REAL*
+━━━━━━━━━━━━━━━━━━━━━━
+📌 Comece com: Teste grátis, Demo, Webinar
+💎 Tier 1: Básico (free - ganhe confiança)
+💎 Tier 2: Pro ($9-15/mês - valor real)
+💎 Tier 3: Premium ($29+/mês - VIPs)
+🎁 Referral: 20% comissão (fácil!)
 
-Dica: Use /promocao para gerar posts prontos!`;
+💡 Dica: Use /promocao para gerar posts prontos!`;
 
       this.bot.sendMessage(chatId, socialGuide, { parse_mode: 'Markdown' });
     });
 
-    // 🌟 Comando /vip - Hot Commands (Mais Utilizados)
+    // 🔥 Comando /vip - Hot Commands (Mais Utilizados com 🔥)
     this.bot.onText(/\/vip/, (msg) => {
       const chatId = msg.chat.id;
       
-      let vipMessage = '🌟 *HOT COMMANDS - OS MAIS UTILIZADOS*\n' +
-                       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+      let vipMessage = '🔥 *HOT COMMANDS - OS MAIS QUENTES!*\n' +
+                       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+                       '✨ Estes são os comandos mais incríveis e mais usados!\n\n';
       
       const grouped = {};
       HOT_COMMANDS.forEach(cmd => {
@@ -485,17 +618,19 @@ Dica: Use /promocao para gerar posts prontos!`;
         vipMessage += '\n';
       });
       
-      vipMessage += '💡 *Dica:* Estes comandos são os mais populares!\n' +
-                    '⭐ Use /favoritos para adicionar seus favoritos\n' +
-                    '📝 Use qualquer um deles no Telegram agora!';
+      vipMessage += '💡 *Sabe o que os incríveis fazem?*\n' +
+                    '🔥 Clicam em /favoritos hot\n' +
+                    '⭐ Para salvar todos esses comandos sensacionais!\n\n' +
+                    '🚀 Vamos começar?';
       
       this.bot.sendMessage(chatId, vipMessage, { parse_mode: 'Markdown' });
     });
 
-    // ⭐ Comando /favoritos - Gerenciar Favoritos
+    // 💖 Comando /favoritos - Gerenciar Favoritos
     this.bot.onText(/\/favoritos(.*)/, (msg, match) => {
       const chatId = msg.chat.id;
       const args = match[1].trim();
+      const emoji = COMMAND_ICONS['/favoritos'];
       
       if (!userFavorites[chatId]) {
         userFavorites[chatId] = [];
@@ -505,18 +640,26 @@ Dica: Use /promocao para gerar posts prontos!`;
         // Mostrar favoritos atuais
         if (userFavorites[chatId].length === 0) {
           this.bot.sendMessage(chatId,
-            '⭐ *Seus Favoritos*\n\n' +
-            'Você ainda não adicionou favoritos!\n\n' +
-            'Use: `/favoritos add /comando` para adicionar\n' +
-            'Exemplo: `/favoritos add /gerar`'
+            `${emoji} *Seus Favoritos (Atalhos Especiais)*\n\n` +
+            '💭 Hmm, você não tem favoritos ainda!\n\n' +
+            '👉 Adicione os comandos que você mais ama:\n' +
+            '`/favoritos add /gerar`\n' +
+            '`/favoritos add /imagem`\n' +
+            '`/favoritos add /chat`\n\n' +
+            '💡 *Ou adicione todos os Hot Commands de uma vez:*\n' +
+            '`/favoritos hot`',
+            { parse_mode: 'Markdown' }
           );
         } else {
-          let favMessage = '⭐ *Seus Favoritos Salvos:*\n\n';
+          let favMessage = `${emoji} *Seus Comandos Favoritos (Seus Atalhos!)*\n` +
+                          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
           userFavorites[chatId].forEach((fav, idx) => {
-            favMessage += `${idx + 1}. ${fav}\n`;
+            const icon = COMMAND_ICONS[fav] || '⭐';
+            favMessage += `${idx + 1}. ${icon} \`${fav}\`\n`;
           });
-          favMessage += '\n💡 Use `/favoritos remove /comando` para remover\n' +
-                       '💡 Use `/favoritos limpar` para limpar todos';
+          favMessage += '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+                       '💡 Remover: `/favoritos remove /comando`\n' +
+                       '🗑️ Limpar tudo: `/favoritos limpar`';
           
           this.bot.sendMessage(chatId, favMessage, { parse_mode: 'Markdown' });
         }
@@ -526,37 +669,59 @@ Dica: Use /promocao para gerar posts prontos!`;
       if (args.startsWith('add')) {
         const cmd = args.replace('add', '').trim();
         if (!cmd.startsWith('/')) {
-          this.bot.sendMessage(chatId, '❌ Use `/favoritos add /comando`\nExemplo: `/favoritos add /gerar`');
+          this.bot.sendMessage(chatId, 
+            `❌ *Ops! Algo deu errado*\n\n` +
+            'Use: `/favoritos add /comando`\n' +
+            'Exemplo: `/favoritos add /gerar`',
+            { parse_mode: 'Markdown' }
+          );
           return;
         }
         if (!userFavorites[chatId].includes(cmd)) {
           userFavorites[chatId].push(cmd);
-          this.bot.sendMessage(chatId, `✅ Adicionado aos favoritos: ${cmd}`);
+          const icon = COMMAND_ICONS[cmd] || '⭐';
+          this.bot.sendMessage(chatId, 
+            `✨ *Adicionado aos seus favoritos!*\n\n${icon} ${cmd}`,
+            { parse_mode: 'Markdown' }
+          );
         } else {
-          this.bot.sendMessage(chatId, `⚠️ ${cmd} já está nos favoritos!`);
+          this.bot.sendMessage(chatId, 
+            `⚠️ ${cmd} já está nos seus favoritos!\n\nNão precisa adicionar duas vezes 😄`,
+            { parse_mode: 'Markdown' }
+          );
         }
       } else if (args.startsWith('remove')) {
         const cmd = args.replace('remove', '').trim();
         userFavorites[chatId] = userFavorites[chatId].filter(f => f !== cmd);
-        this.bot.sendMessage(chatId, `✅ Removido dos favoritos: ${cmd}`);
+        this.bot.sendMessage(chatId, 
+          `🗑️ *Removido dos favoritos!*\n\n${cmd}`,
+          { parse_mode: 'Markdown' }
+        );
       } else if (args === 'limpar') {
         userFavorites[chatId] = [];
-        this.bot.sendMessage(chatId, '✅ Favoritos limpos!');
+        this.bot.sendMessage(chatId, 
+          `🧹 *Favoritos zerados!*\n\nAdcione novos comandos quando quiser!`,
+          { parse_mode: 'Markdown' }
+        );
       } else if (args === 'hot') {
         // Adicionar todos os HOT commands aos favoritos
         const hotCmds = HOT_COMMANDS.map(cmd => cmd.name);
         userFavorites[chatId] = [...new Set([...userFavorites[chatId], ...hotCmds])];
         this.bot.sendMessage(chatId, 
-          `✅ Adicionados ${hotCmds.length} comandos Hot aos favoritos!`
+          `🔥 *Boom! Adicionados ${hotCmds.length} Hot Commands!*\n\n` +
+          'Agora você tem acesso aos melhores atalhos. Que vença a preguiça! 💪',
+          { parse_mode: 'Markdown' }
         );
       } else {
         this.bot.sendMessage(chatId, 
-          '📝 Opções:\n' +
-          '`/favoritos` - Ver seus favoritos\n' +
-          '`/favoritos add /comando` - Adicionar\n' +
-          '`/favoritos remove /comando` - Remover\n' +
-          '`/favoritos limpar` - Limpar todos\n' +
-          '`/favoritos hot` - Adicionar todos Hot Commands'
+          `${emoji} *Como usar Favoritos?*\n\n` +
+          '`/favoritos` - Ver lista de favoritos\n' +
+          '`/favoritos add /comando` - Adicionar um\n' +
+          '`/favoritos remove /comando` - Remover um\n' +
+          '`/favoritos limpar` - Limpar TODOS\n' +
+          '`/favoritos hot` - Adicionar todos os Hot Commands\n\n' +
+          '💡 *Dica:* Adicione seus comandos preferidos e acesse rápido!',
+          { parse_mode: 'Markdown' }
         );
       }
     });
@@ -580,12 +745,14 @@ Dica: Use /promocao para gerar posts prontos!`;
       );
     });
 
-    // Comando /gerar
+    // Comando /gerar - Gerar Conteúdo com IA
     this.bot.onText(/\/gerar (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
       const text = match[1];
       
-      await this.bot.sendMessage(chatId, '⚡ Gerando conteúdo...');
+      // Mensagem humanizada com emoji customizado
+      const emoji = COMMAND_ICONS['/gerar'];
+      await this.bot.sendMessage(chatId, `${emoji} Deixa eu trabalhar minha mágica aqui... ✨`);
       
       try {
         if (!this.mcpClient) {
@@ -598,9 +765,9 @@ Dica: Use /promocao para gerar posts prontos!`;
         });
 
         const response = result.content[0].text;
-        await this.bot.sendMessage(chatId, response);
+        await this.bot.sendMessage(chatId, `${emoji} *Pronto! Aqui está seu conteúdo:*\n\n${response}`);
       } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+        await this.bot.sendMessage(chatId, `❌ Ops! Algo deu errado: ${error.message}\n\nTenta de novo? 🤔`);
       }
     });
 
@@ -672,12 +839,13 @@ Dica: Use /promocao para gerar posts prontos!`;
       }, 500);
     });
 
-    // Comando /imagem - Gerar imagem com Stable Diffusion
+    // 🎭 Comando /imagem - Gerar imagem com Stable Diffusion
     this.bot.onText(/\/imagem (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
       const prompt = match[1];
+      const emoji = COMMAND_ICONS['/imagem'];
       
-      await this.bot.sendMessage(chatId, '🎨 Gerando imagem... Isso pode levar 30-60 segundos.');
+      await this.bot.sendMessage(chatId, `${emoji} *Deixa eu pintaar um quadro com seus sonhos...*\n\n⏳ Isso pode levar 30-60 segundos, mas vai valer a pena!`);
       
       try {
         // Usando Pollinations.ai (API gratuita e estável)
@@ -695,13 +863,15 @@ Dica: Use /promocao para gerar posts prontos!`;
 
         // Enviar imagem
         await this.bot.sendPhoto(chatId, buffer, {
-          caption: `🎨 Imagem gerada: "${prompt}"\n\n⚡ Powered by Pollinations.ai`
+          caption: `${emoji} *Voilà! Seu quadro está pronto!*\n\n"${prompt}"\n\n✨ Criado com amor e IA\n⚡ Powered by Pollinations.ai`
         });
       } catch (error) {
         console.error('Erro ao gerar imagem:', error);
         await this.bot.sendMessage(chatId, 
-          `❌ Erro ao gerar imagem: ${error.message}\n\n` +
-          `💡 Tente novamente ou use uma descrição diferente!`
+          `${emoji} *Ops! Algo deu errado no meu estúdio de pintura...*\n\n❌ ${error.message}\n\n` +
+          `💡 *Tenta de novo com uma descrição diferente?*\n` +
+          `Ex: "Um gato usando óculos de sol em Marte"`,
+          { parse_mode: 'Markdown' }
         );
       }
     });
@@ -991,9 +1161,11 @@ Dica: Use /promocao para gerar posts prontos!`;
     });
 
     // 18️⃣ Comando /chat - Chatbot com Memória e Contexto
+    // 💭 Comando /chat - Chat com memória
     this.bot.onText(/\/chat (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
       const mensagem = match[1];
+      const emoji = COMMAND_ICONS['/chat'];
 
       if (!conversations[chatId]) {
         conversations[chatId] = [];
@@ -1006,13 +1178,15 @@ Dica: Use /promocao para gerar posts prontos!`;
           await this.connectMCP();
         }
 
+        await this.bot.sendMessage(chatId, `${emoji} *Deixa eu pensar um pouco...*`);
+
         // Construir histórico com melhor formato
         const historicoTexto = conversations[chatId]
           .slice(-10) // Últimas 10 mensagens
           .map(m => `${m.role === 'user' ? 'Você' : 'OlympIA'}: ${m.content}`)
           .join('\n');
           
-        const prompt = `Você é OlympIA ⚡, um assistente inteligente e preciso.\n\nHistórico da conversa:\n${historicoTexto}\n\nResponda de forma natural, lógica e sem alucinar.`;
+        const prompt = `Você é OlympIA ⚡, um assistente inteligente, divertido e preciso que SEMPRE é autêntica e personável.\n\nHistórico da conversa:\n${historicoTexto}\n\nResponda de forma natural, conversacional, e sem alucinar. Use emojis quando apropriado para parecer mais humana.`;
         
         const result = await this.mcpClient.callTool({
           name: 'olympia_reasoning',
@@ -1027,9 +1201,12 @@ Dica: Use /promocao para gerar posts prontos!`;
           conversations[chatId] = conversations[chatId].slice(-20);
         }
 
-        await this.bot.sendMessage(chatId, resposta);
+        await this.bot.sendMessage(chatId, `${emoji} ${resposta}`);
       } catch (error) {
-        await this.bot.sendMessage(chatId, `❌ Erro: ${error.message}`);
+        await this.bot.sendMessage(chatId, 
+          `${emoji} *Opa! Meu cérebro travou um segundo...*\n\n❌ ${error.message}\n\nTenta de novo? 🤔`,
+          { parse_mode: 'Markdown' }
+        );
       }
     });
 
