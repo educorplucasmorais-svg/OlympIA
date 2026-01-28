@@ -91,7 +91,7 @@ class TelegramOlympIA {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId, 
         '🤖 *Olá! Eu sou a OlympIA!*\n' +
-        'Bot de Automação IA para Telegram com 17 comandos\n\n' +
+        'Bot de Automação IA para Telegram com 19 comandos\n\n' +
         
         '🧠 *IA & Criatividade* (5 comandos)\n' +
         '• `/gerar` - Gerar textos, analisar, chat com memória\n' +
@@ -124,9 +124,9 @@ class TelegramOlympIA {
         '• `/conhecimento` - Busca na base de conhecimento\n' +
         '• `/kb:stats` - Mostra estatísticas da base\n\n' +
         
-        '📊 *Info & Sistema* (2 comandos)\n' +
-        '• `/skills` - Lista as 34 skills de IA disponíveis\n' +
-        '• **Mensagem comum** - Qualquer texto é processado por IA\n\n' +
+        '📊 *Marketing & SEO* (2 novos!)\n' +
+        '• `/marketing` - Estratégia SEO, Marketing e Redes Sociais 📱\n' +
+        '• `/promocao` - Gera 5 posts prontos para compartilhar 📢\n\n' +
         
         '💡 *Ou envie qualquer texto para IA responder!*',
         { parse_mode: 'Markdown' }
@@ -234,6 +234,143 @@ class TelegramOlympIA {
       }
     });
 
+    // 📱 Comando /marketing - Dicas de SEO, Marketing e Mídias Sociais
+    this.bot.onText(/\/marketing/, (msg) => {
+      const chatId = msg.chat.id;
+      const marketingGuide = `🎯 *ESTRATÉGIA DE MARKETING & SEO PARA OLYMPIA*
+
+*🔍 SEO - Otimização para Buscas*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 Palavras-chave principais:
+   • Inteligência Artificial
+   • OlympIA
+   • Produtividade
+   • Conteúdo de Qualidade
+   • Análise de Dados
+   • Automação de Tarefas
+
+📝 Meta descrição:
+"Conheça a OlympIA, a inteligência artificial que está revolucionando a forma como trabalhamos. Aprenda como a OlympIA pode ajudá-lo a aumentar a produtividade e criar conteúdo de alta qualidade."
+
+📄 Título da página:
+"Conheça a OlympIA: A Inteligência Artificial que Está Revolucionando a Forma como Trabalhamos!"
+
+*📱 MARKETING & REDES SOCIAIS*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Compartilhe em suas redes sociais
+   • LinkedIn - Foco profissional/produtividade
+   • Twitter - Atualizações e novidades
+   • Instagram - Conteúdo visual e tips
+   • WhatsApp - Compartilhe com grupos
+
+#️⃣ Hashtags estratégicas:
+   #OlympIA #IA #InteligenciaArtificial
+   #Automacao #Produtividade #Tech
+   #Marketing #SEO #IA2026
+
+👥 Engajamento:
+   • Peça aos amigos e colegas para compartilhar
+   • Ofereça demonstração gratuita
+   • Crie conteúdo sobre casos de uso
+   • Responda comentários rapidamente
+
+🎁 Ofereça:
+   • Teste grátis de 7 dias
+   • Webinar gratuito sobre IA
+   • E-book: "Guia de IA para Produtividade"
+   • Consultoria inicial grátis
+
+💡 Dica: Use /promocao para gerar posts prontos!`;
+
+      this.bot.sendMessage(chatId, marketingGuide, { parse_mode: 'Markdown' });
+    });
+
+    // 📢 Comando /promocao - Gera posts prontos para compartilhar
+    this.bot.onText(/\/promocao/, async (msg) => {
+      const chatId = msg.chat.id;
+      const posts = [
+        `🤖 *POST 1 - LinkedIn/Profissional*
+"Cansado de tarefas repetitivas? A OlympIA é uma inteligência artificial revolucionária que aumenta sua produtividade em até 300%! 🚀
+
+✨ Com a OlympIA você pode:
+• Gerar conteúdo criativo em segundos
+• Analisar dados complexos
+• Automatizar tarefas rotineiras
+• Extrair insights com IA
+
+Teste grátis agora! Acesse: [link do seu bot]
+
+#IA #Automação #Produtividade #OlympIA"`,
+
+        `🤖 *POST 2 - Instagram/Visual*
+"Revolucione seu workflow com OlympIA ✨🤖
+
+A IA que entende você e trabalha com você!
+
+✅ 17 comandos poderosos
+✅ Análise profunda em segundos
+✅ Criação de conteúdo automática
+✅ Compatível com Telegram
+
+Experimente GRÁTIS agora! 🚀
+
+#OlympIA #IA #Tech #Inovação"`,
+
+        `🤖 *POST 3 - Twitter/Rápido*
+"OlympIA: A inteligência artificial que transforma sua produtividade 🚀
+
+17 comandos poderosos de IA
+📊 Análise de dados
+✍️ Criação de conteúdo
+🎨 Geração de imagens
+🔍 SEO e Keywords
+
+Teste GRÁTIS via Telegram! 🤖✨
+
+#IA #OlympIA #Automação"`,
+
+        `🤖 *POST 4 - WhatsApp/Casual*
+"Ei! 👋 Descobri uma IA INCRÍVEL chamada OlympIA 🤖
+
+Ela faz TUDO:
+✅ Gera conteúdo
+✅ Analisa textos
+✅ Cria imagens
+✅ Traduz
+✅ E muito mais!
+
+Melhor? É GRÁTIS no Telegram! 🚀
+
+Quer testar? Me manda msg que eu mando o link! 😎"`,
+
+        `🤖 *POST 5 - Blog/Artigo*
+"Como OlympIA Está Mudando a Forma Como Trabalhamos
+
+A inteligência artificial deixou de ser ficção científica e virou realidade no seu Telegram.
+
+OlympIA é uma IA revolucionária que oferece 17 comandos poderosos para aumentar sua produtividade, desde geração de conteúdo até análise de dados complexos.
+
+Neste artigo, exploraremos como você pode aproveitar o poder da IA para transformar seu trabalho diário.
+
+[Conteúdo detalhado...]
+
+#OlympIA #IA #Futurismo"`
+      ];
+
+      // Enviar posts em sequência
+      for (let i = 0; i < posts.length; i++) {
+        setTimeout(() => {
+          this.bot.sendMessage(chatId, posts[i], { parse_mode: 'Markdown' });
+        }, 500 * (i + 1));
+      }
+
+      setTimeout(() => {
+        this.bot.sendMessage(chatId, 
+          `✅ *5 Posts gerados com sucesso!*\n\nDica: Adapte os posts para sua audiência específica e compartilhe! 📱\n\nUse hashtags relevantes e incentive o compartilhamento! 🚀`
+        );
+      }, 3500);
+    });
+
     // Comando /ajuda
     this.bot.onText(/\/ajuda/, (msg) => {
       const chatId = msg.chat.id;
@@ -328,11 +465,21 @@ class TelegramOlympIA {
     // Comando /skills
     this.bot.onText(/\/skills/, (msg) => {
       const chatId = msg.chat.id;
-      const skillsList = AVAILABLE_SKILLS.map((skill, i) => `${i + 1}. ${skill}`).join('\n');
+      const mid = Math.ceil(AVAILABLE_SKILLS.length / 2);
+      const part1 = AVAILABLE_SKILLS.slice(0, mid).map((skill, i) => `${i + 1}. ${skill}`).join('\n');
+      const part2 = AVAILABLE_SKILLS.slice(mid).map((skill, i) => `${mid + i + 1}. ${skill}`).join('\n');
+      
       this.bot.sendMessage(chatId, 
-        `🎯 *Skills Disponíveis (${AVAILABLE_SKILLS.length}):*\n\n${skillsList}\n\n💡 Use /gerar para testar!`,
+        `🎯 *Skills Disponíveis - Parte 1/${Math.ceil(AVAILABLE_SKILLS.length / mid)}:*\n\n${part1}`,
         { parse_mode: 'Markdown' }
       );
+      
+      setTimeout(() => {
+        this.bot.sendMessage(chatId, 
+          `🎯 *Skills Disponíveis - Parte 2/${Math.ceil(AVAILABLE_SKILLS.length / mid)}:*\n\n${part2}\n\n💡 Use /gerar para testar!`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 500);
     });
 
     // Comando /imagem - Gerar imagem com Stable Diffusion
