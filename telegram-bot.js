@@ -98,8 +98,6 @@ class TelegramOlympIA {
         '   _Traduzir, PDF, senha, morse, OCR, email_\n\n' +
         '🏠 */casa* - Casa Inteligente (5 comandos)\n' +
         '   _Controlar luzes, sons, automações_\n\n' +
-        '📅 */workspace* - Google Workspace (3 comandos)\n' +
-        '   _Agenda, Gmail, Google Chat_\n\n' +
         '📊 */info* - Sistema (3 comandos)\n' +
         '   _Skills, ajuda, status_\n\n' +
         '💡 *Ou envie qualquer texto para IA responder!*',
