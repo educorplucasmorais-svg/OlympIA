@@ -147,6 +147,7 @@ class TelegramOlympIA {
     this.mcpClient = null;
     this.mcpPool = null; // Pool para reusar conexões
     this.conversations = new ConversationManager(); // Gerenciador de conversas
+    this.userFavorites = {}; // Favoritos dos usuários
     
     // Inicializar banco de dados
     initializeDatabase();
@@ -502,98 +503,267 @@ class TelegramOlympIA {
 
     // Método para mostrar menu ADMIN
     this.showAdminMenu = async (chatId, userName) => {
-      const hot = (cmd) => this.hotCommands.includes(cmd) ? '🔥 ' : '';
-      
+      const inlineKeyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            // Linha 1: Painel Admin
+            [
+              { text: '📊 Painel Admin', callback_data: 'admin_info' },
+              { text: '📋 Relatórios', callback_data: 'admin_reports' }
+            ],
+            // Linha 2: IA Criativa
+            [
+              { text: '💡 Gerar', callback_data: 'cmd_gerar' },
+              { text: '🔍 Analisar', callback_data: 'cmd_analisar' },
+              { text: '🎭 Imagem', callback_data: 'cmd_imagem' }
+            ],
+            // Linha 3: Ferramentas
+            [
+              { text: '🌍 Traduzir', callback_data: 'cmd_traduzir' },
+              { text: '🔐 Senha', callback_data: 'cmd_senha' },
+              { text: '📧 Email', callback_data: 'cmd_email' }
+            ],
+            // Linha 4: Utilidades
+            [
+              { text: '📋 PDF', callback_data: 'cmd_pdf' },
+              { text: '🔎 Google', callback_data: 'cmd_google' },
+              { text: '⏰ Lembrete', callback_data: 'cmd_lembrete' }
+            ],
+            // Linha 5: Conhecimento
+            [
+              { text: '📚 Conhecimento', callback_data: 'cmd_conhecimento' },
+              { text: '🎯 Marketing', callback_data: 'cmd_marketing' }
+            ],
+            // Linha 6: Ações
+            [
+              { text: '⭐ Favoritos', callback_data: 'show_favorites' },
+              { text: '🧩 Skills', callback_data: 'cmd_skills' }
+            ]
+          ]
+        }
+      };
+
       await this.bot.sendMessage(chatId,
-        `👑 *Olá ${userName}! Acesso Admin*\n\n` +
-        '*Painel Administrativo:*\n' +
-        '📊 `/info` - Painel completo de gerência\n' +
-        '📋 `/relatorio` - Gerar relatórios\n' +
-        '📁 `/relatorios` - Listar relatórios salvos\n\n' +
-        '*Comandos Disponíveis:*\n\n' +
-        '✨ *Criatividade com IA*\n' +
-        `• ${hot('/gerar')}💡 \`/gerar\` - Criar ideias geniais\n` +
-        `• ${hot('/analisar')}🔍 \`/analisar\` - Análise profunda\n` +
-        `• ${hot('/keywords')}🎯 \`/keywords\` - Palavras-chave\n` +
-        `• ${hot('/imagem')}🎭 \`/imagem\` - Gerar imagens\n` +
-        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n` +
-        `• ${hot('/skills')}🎯 \`/skills\` - Ver todas as skills\n\n` +
-        '🛠️ *Ferramentas*\n' +
-        `• ${hot('/traduzir')}🌍 \`/traduzir\` - Tradução\n` +
-        `• ${hot('/senha')}🔐 \`/senha\` - Gerar senha\n` +
-        `• ${hot('/morse')}📡 \`/morse\` - Código Morse\n` +
-        `• ${hot('/noticias')}📰 \`/noticias\` - Notícias\n` +
-        `• ${hot('/falar')}🎙️ \`/falar\` - Text-to-Speech\n` +
-        `• ${hot('/ocr')}📸 \`/ocr\` - Extrair texto\n` +
-        `• ${hot('/email')}✉️ \`/email\` - Enviar email\n` +
-        `• ${hot('/lembrete')}⏰ \`/lembrete\` - Lembretes\n` +
-        `• ${hot('/pdf')}📋 \`/pdf\` - Gerar PDF\n` +
-        `• ${hot('/google')}🔎 \`/google\` - Pesquisar\n\n` +
-        '📚 *Conhecimento*\n' +
-        `• ${hot('/conhecimento')}📚 \`/conhecimento\` - Base de dados IA\n` +
-        `• ${hot('/kb:stats')}📈 \`/kb:stats\` - Estatísticas\n\n` +
-        '🎯 *Marketing*\n' +
-        `• ${hot('/marketing')}📊 \`/marketing\` - Estratégias\n` +
-        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n` +
-        `• ${hot('/social')}👥 \`/social\` - Redes sociais\n` +
-        `• ${hot('/vip')}👑 \`/vip\` - Recursos premium\n\n` +
-        '🏠 *Casa Inteligente*\n' +
-        `• ${hot('/casa')}💡 \`/casa\` - Automação residencial\n\n` +
-        '⭐ *Favoritos*\n' +
-        `• ${hot('/favoritos')}💖 \`/favoritos\` - Seus comandos favoritos\n\n` +
-        '📋 *Menus Rápidos*\n' +
-        `• ${hot('/ia')}🤖 \`/ia\` - Menu IA completo\n` +
-        `• ${hot('/utilidades')}🛠️ \`/utilidades\` - Menu ferramentas\n` +
-        `• ${hot('/ajuda')}🤝 \`/ajuda\` - Central de ajuda\n\n` +
-        '💡 *Ou escreva qualquer coisa para conversar!*',
-        { parse_mode: 'Markdown' }
+        `👑 *Olá ${userName}!*\n` +
+        `🎯 *Painel Administrativo OlympIA*\n\n` +
+        `🤖 *IA Criativa & Ferramentas Profissionais*\n` +
+        `Selecione uma opção abaixo:`,
+        {
+          parse_mode: 'Markdown',
+          ...inlineKeyboard
+        }
       );
     };
 
     // Método para mostrar menu USUÁRIO
     this.showUserMenu = async (chatId, userName) => {
-      const hot = (cmd) => this.hotCommands.includes(cmd) ? '🔥 ' : '';
-      
+      const inlineKeyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            // Linha 1: IA Criativa
+            [
+              { text: '💡 Gerar', callback_data: 'cmd_gerar' },
+              { text: '🔍 Analisar', callback_data: 'cmd_analisar' },
+              { text: '🎭 Imagem', callback_data: 'cmd_imagem' }
+            ],
+            // Linha 2: Ferramentas
+            [
+              { text: '🌍 Traduzir', callback_data: 'cmd_traduzir' },
+              { text: '🔐 Senha', callback_data: 'cmd_senha' },
+              { text: '📧 Email', callback_data: 'cmd_email' }
+            ],
+            // Linha 3: Utilidades
+            [
+              { text: '📋 PDF', callback_data: 'cmd_pdf' },
+              { text: '🔎 Google', callback_data: 'cmd_google' },
+              { text: '⏰ Lembrete', callback_data: 'cmd_lembrete' }
+            ],
+            // Linha 4: Conhecimento & Marketing
+            [
+              { text: '📚 Conhecimento', callback_data: 'cmd_conhecimento' },
+              { text: '🎯 Marketing', callback_data: 'cmd_marketing' }
+            ],
+            // Linha 5: Ações
+            [
+              { text: '⭐ Favoritos', callback_data: 'show_favorites' },
+              { text: '🧩 Skills', callback_data: 'cmd_skills' }
+            ]
+          ]
+        }
+      };
+
       await this.bot.sendMessage(chatId,
-        `🤖 *Olá ${userName}! Bem-vindo à OlympIA*\n` +
-        'Sua IA inteligente com superpoderes\n\n' +
-        '✨ *Criatividade com IA*\n' +
-        `• ${hot('/gerar')}💡 \`/gerar\` - Criar ideias geniais\n` +
-        `• ${hot('/analisar')}🔍 \`/analisar\` - Análise profunda\n` +
-        `• ${hot('/keywords')}🎯 \`/keywords\` - Palavras-chave\n` +
-        `• ${hot('/imagem')}🎭 \`/imagem\` - Gerar imagens\n` +
-        `• ${hot('/chat')}💭 \`/chat\` - Conversa inteligente\n` +
-        `• ${hot('/skills')}🎯 \`/skills\` - Ver todas as skills\n\n` +
-        '🛠️ *Ferramentas*\n' +
-        `• ${hot('/traduzir')}🌍 \`/traduzir\` - Tradução\n` +
-        `• ${hot('/senha')}🔐 \`/senha\` - Gerar senha\n` +
-        `• ${hot('/morse')}📡 \`/morse\` - Código Morse\n` +
-        `• ${hot('/noticias')}📰 \`/noticias\` - Notícias\n` +
-        `• ${hot('/falar')}🎙️ \`/falar\` - Text-to-Speech\n` +
-        `• ${hot('/ocr')}📸 \`/ocr\` - Extrair texto\n` +
-        `• ${hot('/email')}✉️ \`/email\` - Enviar email\n` +
-        `• ${hot('/lembrete')}⏰ \`/lembrete\` - Lembretes\n` +
-        `• ${hot('/pdf')}📋 \`/pdf\` - Gerar PDF\n` +
-        `• ${hot('/google')}🔎 \`/google\` - Pesquisar\n\n` +
-        '📚 *Conhecimento*\n' +
-        `• ${hot('/conhecimento')}📚 \`/conhecimento\` - Base de dados IA\n` +
-        `• ${hot('/kb:stats')}📈 \`/kb:stats\` - Estatísticas\n\n` +
-        '🎯 *Marketing*\n' +
-        `• ${hot('/marketing')}📊 \`/marketing\` - Estratégias\n` +
-        `• ${hot('/promocao')}🎉 \`/promocao\` - Posts virais\n` +
-        `• ${hot('/social')}👥 \`/social\` - Redes sociais\n` +
-        `• ${hot('/vip')}👑 \`/vip\` - Recursos premium\n\n` +
-        '🏠 *Casa Inteligente*\n' +
-        `• ${hot('/casa')}💡 \`/casa\` - Automação residencial\n\n` +
-        '⭐ *Favoritos*\n' +
-        `• ${hot('/favoritos')}💖 \`/favoritos\` - Seus comandos favoritos\n\n` +
-        '📋 *Menus Rápidos*\n' +
-        `• ${hot('/ia')}🤖 \`/ia\` - Menu IA completo\n` +
-        `• ${hot('/utilidades')}🛠️ \`/utilidades\` - Menu ferramentas\n` +
-        `• ${hot('/ajuda')}🤝 \`/ajuda\` - Central de ajuda\n\n` +
-        '💡 *Ou escreva qualquer coisa para conversar!*',
-        { parse_mode: 'Markdown' }
+        `🤖 *Olá ${userName}!*\n` +
+        `🎯 *Bem-vindo à OlympIA*\n\n` +
+        `🤖 *IA Criativa & Ferramentas Profissionais*\n` +
+        `Selecione uma opção abaixo:`,
+        {
+          parse_mode: 'Markdown',
+          ...inlineKeyboard
+        }
       );
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // HANDLER PARA INLINE KEYBOARDS (CARDS BONITOS)
+    // ═══════════════════════════════════════════════════════════════
+
+    // Handler para callbacks dos botões inline
+    this.bot.on('callback_query', async (query) => {
+      const chatId = query.message.chat.id;
+      const data = query.data;
+      const userName = query.from.first_name || 'usuário';
+
+      // Responder ao callback para remover o loading
+      await this.bot.answerCallbackQuery(query.id);
+
+      try {
+        // Processar diferentes callbacks
+        if (data.startsWith('cmd_')) {
+          const command = data.replace('cmd_', '');
+          await this.handleInlineCommand(chatId, command, userName);
+        } else if (data === 'admin_info') {
+          await this.handleAdminInfo(chatId);
+        } else if (data === 'admin_reports') {
+          await this.handleAdminReports(chatId);
+        } else if (data === 'show_favorites') {
+          await this.handleShowFavorites(chatId);
+        }
+      } catch (error) {
+        console.error('Erro no callback:', error);
+        await this.bot.sendMessage(chatId, '❌ Erro ao processar comando. Tente novamente.');
+      }
+    });
+
+    // Método para processar comandos dos botões inline
+    this.handleInlineCommand = async (chatId, command, userName) => {
+      const commandMap = {
+        'gerar': '/gerar',
+        'analisar': '/analisar',
+        'keywords': '/keywords',
+        'imagem': '/imagem',
+        'chat': '/chat',
+        'traduzir': '/traduzir',
+        'senha': '/senha',
+        'morse': '/morse',
+        'noticias': '/noticias',
+        'falar': '/falar',
+        'ocr': '/ocr',
+        'email': '/email',
+        'lembrete': '/lembrete',
+        'pdf': '/pdf',
+        'google': '/google',
+        'conhecimento': '/conhecimento',
+        'kb:stats': '/kb:stats',
+        'marketing': '/marketing',
+        'promocao': '/promocao',
+        'social': '/social',
+        'vip': '/vip',
+        'casa': '/casa',
+        'favoritos': '/favoritos',
+        'skills': '/skills',
+        'ia': '/ia',
+        'utilidades': '/utilidades',
+        'ajuda': '/ajuda'
+      };
+
+      const actualCommand = commandMap[command];
+      if (actualCommand) {
+        await this.bot.sendMessage(chatId,
+          `🎯 *Comando selecionado:* ${actualCommand}\n\n` +
+          `💡 *Como usar:* Digite \`${actualCommand} [sua solicitação]\`\n\n` +
+          `📝 *Exemplo:* \`${actualCommand} olá mundo\``,
+          { parse_mode: 'Markdown' }
+        );
+      } else {
+        await this.bot.sendMessage(chatId, '❌ Comando não encontrado.');
+      }
+    };
+
+    // Método para mostrar informações do admin
+    this.handleAdminInfo = async (chatId) => {
+      const { getAllUsers, getUserStats } = await import('./database.js');
+      const users = getAllUsers();
+      const stats = getUserStats();
+
+      const infoMessage =
+        `👑 *PAINEL ADMINISTRATIVO OLYMPIA*\n\n` +
+        `📊 *ESTATÍSTICAS GERAIS*\n` +
+        `• 👥 Total de usuários: ${users.length}\n` +
+        `• 📈 Comandos executados hoje: ${stats.todayCommands || 0}\n` +
+        `• ⚡ Tempo médio de resposta: ${stats.avgResponseTime || 0}ms\n` +
+        `• 🎯 Taxa de sucesso: ${stats.successRate || 0}%\n\n` +
+        `🖥️ *SISTEMA*\n` +
+        `• 🟢 Status: Online\n` +
+        `• 🤖 MCP: ${this.mcpClient ? 'Conectado' : 'Desconectado'}\n` +
+        `• 💾 Memória: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB\n\n` +
+        `⚙️ *AÇÕES RÁPIDAS*\n` +
+        `• 📋 /relatorio - Gerar relatório\n` +
+        `• 📁 /relatorios - Ver relatórios salvos\n` +
+        `• 🔄 /start - Voltar ao menu`;
+
+      await this.bot.sendMessage(chatId, infoMessage, { parse_mode: 'Markdown' });
+    };
+
+    // Método para mostrar relatórios do admin
+    this.handleAdminReports = async (chatId) => {
+      const { listDailyReports } = await import('./database.js');
+      const reports = listDailyReports(5);
+
+      if (reports.length === 0) {
+        await this.bot.sendMessage(chatId,
+          `📭 *Nenhum relatório encontrado*\n\n` +
+          `💡 Use \`/relatorio\` para gerar um novo relatório.`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      let message = `📊 *ÚLTIMOS RELATÓRIOS*\n\n`;
+      reports.forEach((report, i) => {
+        const date = new Date(report.report_date).toLocaleDateString('pt-BR');
+        const sent = report.email_sent ? '✅' : '❌';
+        message += `${i + 1}. *${date}* ${sent}\n`;
+        message += `   📧 ${report.report_subject}\n`;
+        if (report.email_error) {
+          message += `   ⚠️ Erro: ${report.email_error}\n`;
+        }
+        message += `\n`;
+      });
+
+      message += `💡 *Para baixar:* \`/relatorio-baixar ID\``;
+
+      await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    };
+
+    // Método para mostrar favoritos
+    this.handleShowFavorites = async (chatId) => {
+      const userFavorites = this.userFavorites[chatId] || [];
+
+      if (userFavorites.length === 0) {
+        await this.bot.sendMessage(chatId,
+          `⭐ *FAVORITOS VAZIOS*\n\n` +
+          `💡 Adicione comandos aos seus favoritos:\n` +
+          `• \`/favoritos add /comando\` - Adicionar\n` +
+          `• \`/favoritos hot\` - Adicionar comandos populares\n\n` +
+          `📚 *Comandos disponíveis:*\n` +
+          `• /gerar, /imagem, /traduzir, /email, /pdf\n` +
+          `• /conhecimento, /marketing, /skills`,
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      let message = `⭐ *SEUS FAVORITOS*\n\n`;
+      userFavorites.forEach((cmd, i) => {
+        const emoji = COMMAND_ICONS[cmd] || '⭐';
+        message += `${i + 1}. ${emoji} \`${cmd}\`\n`;
+      });
+
+      message += `\n💡 *Como usar:* Digite o comando diretamente\n`;
+      message += `🔧 *Gerenciar:* \`/favoritos remove /comando\``;
+
+      await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     };
 
     // ═══════════════════════════════════════════════════════════════
