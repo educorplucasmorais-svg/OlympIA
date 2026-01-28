@@ -90,16 +90,44 @@ class TelegramOlympIA {
     this.bot.onText(/\/start/, (msg) => {
       const chatId = msg.chat.id;
       this.bot.sendMessage(chatId, 
-        '🤖 *Olá! Eu sou a OlympIA!*\n\n' +
-        '📋 *Escolha uma categoria:*\n\n' +
-        '🧠 */ia* - IA & Criatividade (5 comandos)\n' +
-        '   _Gerar textos, analisar, chat com memória_\n\n' +
-        '🛠️ */utilidades* - Ferramentas (10 comandos)\n' +
-        '   _Traduzir, PDF, senha, morse, OCR, email_\n\n' +
+        '🤖 *Olá! Eu sou a OlympIA!*\n' +
+        'Bot de Automação IA para Telegram com 17 comandos\n\n' +
+        
+        '🧠 *IA & Criatividade* (5 comandos)\n' +
+        '• `/gerar` - Gerar textos, analisar, chat com memória\n' +
+        '• `/analisar` - Análise profunda com IA\n' +
+        '• `/keywords` - Extrai palavras-chave SEO\n' +
+        '• `/imagem` - Gera imagem 1024x1024px\n' +
+        '• `/chat` - Chat com memoria de contexto\n\n' +
+        
+        '🛠️ *Utilidades* - Ferramentas (10 comandos)\n' +
+        '• `/traduzir` - Traduz para qualquer idioma\n' +
+        '• `/senha` - Gera senha segura (8-128 chars)\n' +
+        '• `/morse` - Converte para codigo Morse\n' +
+        '• `/noticias` - Busca noticias em tempo real\n' +
+        '• `/falar` - Converte texto em audio MP3\n' +
+        '• `/ocr` - Extrai texto de imagens (foto)\n' +
+        '• `/email` - Envia email via Gmail\n' +
+        '• `/lembrete` - Agenda lembretes (m/h/d)\n' +
+        '• `/pdf` - Gera PDF com conteúdo\n' +
+        '• `/google` - Pesquisa no Google\n\n' +
+        
         '🏠 */casa* - Casa Inteligente (5 comandos)\n' +
-        '   _Controlar luzes, sons, automações_\n\n' +
-        '📊 */info* - Sistema (3 comandos)\n' +
-        '   _Skills, ajuda, status_\n\n' +
+        '• Controlar luzes, sons, automações\n\n' +
+        
+        '📱 *Pesquisa & Comunicacao* (3 comandos)\n' +
+        '• `/google` - Pesquisa no Google, retorna links\n' +
+        '• `/start` - Inicia o bot e mostra menu\n' +
+        '• `/ajuda` - Mostra guia completo de uso\n\n' +
+        
+        '🧠 *Base de Conhecimento*\n' +
+        '• `/conhecimento` - Busca na base de conhecimento\n' +
+        '• `/kb:stats` - Mostra estatísticas da base\n\n' +
+        
+        '📊 *Info & Sistema* (2 comandos)\n' +
+        '• `/skills` - Lista as 34 skills de IA disponíveis\n' +
+        '• **Mensagem comum** - Qualquer texto é processado por IA\n\n' +
+        
         '💡 *Ou envie qualquer texto para IA responder!*',
         { parse_mode: 'Markdown' }
       );
