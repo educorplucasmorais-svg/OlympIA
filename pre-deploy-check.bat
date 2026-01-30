@@ -49,15 +49,6 @@ if not exist ".env" (
 echo ✅ Arquivo .env encontrado
 echo.
 
-echo 🚂 Verificando configuração Railway...
-if not exist "railway.json" (
-    echo ❌ Arquivo railway.json não encontrado!
-    pause
-    exit /b 1
-)
-echo ✅ Configuração Railway OK
-echo.
-
 echo ========================================
 echo ✅ PRÉ-DEPLOY CONCLUÍDO COM SUCESSO!
 echo ========================================
@@ -65,8 +56,6 @@ echo.
 echo 🎯 PRÓXIMOS PASSOS:
 echo 1. Configure suas variáveis no .env
 echo 2. Teste localmente: npm run telegram
-echo 3. Faça deploy no Railway seguindo RAILWAY-DEPLOY.md
 echo.
-echo 📚 Documentação: RAILWAY-DEPLOY.md
-echo.
+REM Railway removido deste projeto
 pause

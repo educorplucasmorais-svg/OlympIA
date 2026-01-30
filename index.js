@@ -43,10 +43,18 @@ class OlympIAServer {
   }
   
   setupHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [{ name: "list_skills", description: "List skills", inputSchema: { type: "object", properties: {} } }, { name: "olympia_reasoning", description: "Resposta inteligente com raciocínio lógico", inputSchema: { type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] } }] }));
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => ({ 
+      tools: [
+        { name: "list_skills", description: "List skills", inputSchema: { type: "object", properties: {} } }, 
+        { name: "olympia_reasoning", description: "Resposta inteligente com raciocínio lógico", inputSchema: { type: "object", properties: { prompt: { type: "string" } }, required: ["prompt"] } },
+        { name: "nano_banana_pro_generate", description: "Generate creative text content", inputSchema: { type: "object", properties: { prompt: { type: "string" }, temperature: { type: "number" }, max_tokens: { type: "number" } }, required: ["prompt"] } },
+        { name: "nano_banana_pro_analyze", description: "Analyze text for sentiment or keywords", inputSchema: { type: "object", properties: { text: { type: "string" }, analysis_type: { type: "string", enum: ["sentiment", "keywords"] } }, required: ["text", "analysis_type"] } }
+      ] 
+    }));
     
     this.server.setRequestHandler(CallToolRequestSchema, async (req) => {
-      if (req.params.name === "list_skills") return { content: [{ type: "text", text: "⚡ OlympIA Skills:\n- Reasoning lógico e preciso\n- Detecção de contexto\n- Sugestões de comandos\n- Análise racional" }] };
+      if (req.params.name === "list_skills") return { content: [{ type: "text", text: "⚡ OlympIA Skills:\n- Reasoning lógico e preciso\n- Detecção de contexto\n- Sugestões de comandos\n- Análise racional\n- Geração de texto criativo\n- Análise de sentimento\n- Extração de palavras-chave" }] };
+      
       if (req.params.name === "olympia_reasoning") {
         try {
           const completion = await groq.chat.completions.create({
@@ -62,6 +70,63 @@ class OlympIAServer {
           return { content: [{ type: "text", text: `⚡ OlympIA:\n\n${text}` }] };
         } catch (e) {
           return { content: [{ type: "text", text: `❌ Erro: ${e.message}` }] };
+        }
+      }
+      
+      if (req.params.name === "nano_banana_pro_generate") {
+        try {
+          const { prompt, temperature = 0.8, max_tokens = 500 } = req.params.arguments;
+          const completion = await groq.chat.completions.create({
+            messages: [
+              { role: "system", content: "Você é um assistente criativo especialista em gerar conteúdo de alta qualidade. Gere respostas criativas, úteis e bem estruturadas." },
+              { role: "user", content: prompt }
+            ],
+            model: "llama-3.3-70b-versatile",
+            temperature: temperature,
+            max_tokens: max_tokens,
+          });
+          const text = completion.choices[0]?.message?.content || "Não foi possível gerar o conteúdo.";
+          return { content: [{ type: "text", text: `🍌 ${text}` }] };
+        } catch (e) {
+          return { content: [{ type: "text", text: `❌ Erro na geração: ${e.message}` }] };
+        }
+      }
+      
+      if (req.params.name === "nano_banana_pro_analyze") {
+        try {
+          const { text, analysis_type } = req.params.arguments;
+          
+          if (analysis_type === "sentiment") {
+            const completion = await groq.chat.completions.create({
+              messages: [
+                { role: "system", content: "Você é um analista de sentimento especialista. Analise o texto fornecido e determine se o sentimento é positivo, negativo ou neutro. Forneça uma explicação breve." },
+                { role: "user", content: `Analise o sentimento deste texto: "${text}"` }
+              ],
+              model: "llama-3.3-70b-versatile",
+              temperature: 0.3,
+              max_tokens: 200,
+            });
+            const result = completion.choices[0]?.message?.content || "Análise não disponível.";
+            return { content: [{ type: "text", text: `📊 Análise de Sentimento:\n${result}` }] };
+          }
+          
+          if (analysis_type === "keywords") {
+            const completion = await groq.chat.completions.create({
+              messages: [
+                { role: "system", content: "Você é um especialista em extração de palavras-chave. Extraia as 5-10 palavras-chave mais relevantes do texto fornecido. Liste-as separadas por vírgulas." },
+                { role: "user", content: `Extraia palavras-chave deste texto: "${text}"` }
+              ],
+              model: "llama-3.3-70b-versatile",
+              temperature: 0.3,
+              max_tokens: 100,
+            });
+            const result = completion.choices[0]?.message?.content || "Palavras-chave não encontradas.";
+            return { content: [{ type: "text", text: `🔑 Palavras-chave:\n${result}` }] };
+          }
+          
+          return { content: [{ type: "text", text: "❌ Tipo de análise não suportado." }] };
+        } catch (e) {
+          return { content: [{ type: "text", text: `❌ Erro na análise: ${e.message}` }] };
         }
       }
     });

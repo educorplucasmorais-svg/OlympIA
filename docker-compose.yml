@@ -44,8 +44,49 @@ services:
       - ./config/mosquitto/data:/mosquitto/data
       - ./config/mosquitto/log:/mosquitto/log
     
+  # Banco de dados PostgreSQL para Evolution API
+  postgres:
+    image: postgres:15
+    container_name: postgres_evolution
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=evolution_api
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=evolution2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - homelab
+
+  # Evolution API para WhatsApp
+  evolution_api:
+    image: atendai/evolution-api:latest
+    container_name: evolution_api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    
+    environment:
+      - AUTHENTICATION_API_KEY=evolution-api-key-secure-2026
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:evolution2026@postgres:5432/evolution_api
+      - TZ=America/Sao_Paulo
+    
+    ports:
+      - "8080:8080"  # API do Evolution
+    
+    volumes:
+      - ./config/evolution:/evolution/store  # Persistir dados do WhatsApp
+    
+    networks:
+      - homelab
+
+volumes:
+  evolution_store:
+  evolution_instances:
+  postgres_data:
 
 networks:
   homelab:

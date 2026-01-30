@@ -29,11 +29,13 @@ pm2 save
 
 ## 🌐 OPÇÕES DE DEPLOY PARA 24/7
 
+
 ### 1️⃣ **Serviços Cloud Gratuitos (Recomendado)**
-- **Railway** (https://railway.app) - $5/mês grátis
 - **Render** (https://render.com) - 750h/mês grátis
 - **Fly.io** (https://fly.io) - 3 apps grátis
 - **Heroku** (https://heroku.com) - 550h/mês grátis
+
+> Railway não é mais suportado neste projeto.
 
 ### 2️⃣ **VPS Baratos**
 - **DigitalOcean** - $6/mês

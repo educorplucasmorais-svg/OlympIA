@@ -95,6 +95,8 @@ const conversations = {};
 const chatModes = {}; // Configuração de chat contextual por usuário
 const reminders = {};
 const userFavorites = {}; // Favoritos dos usuários
+const imagePrompts = {}; // Mapa para armazenar prompts de imagem com IDs
+let imagePromptCounter = 0;
 
 // 🔥 HOT COMMANDS - Mais Utilizados
 const HOT_COMMANDS = [
@@ -175,48 +177,9 @@ class TelegramOlympIA {
 
       if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
         console.log('⚠️ Conflito de polling detectado - múltiplas instâncias rodando');
-
-        // Se já está tentando reconectar, ignorar
-        if (this.reconnecting) {
-          console.log('⚠️ Já tentando reconectar, ignorando...');
-          return;
-        }
-
-        // Verificar se não excedeu tentativas máximas
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-          console.log('❌ Máximo de tentativas de reconexão atingido. Abortando.');
-          console.log('💡 Solução: Pare outras instâncias do bot antes de iniciar uma nova.');
-          return;
-        }
-
-        // Verificar cooldown entre tentativas (30 segundos)
-        const now = Date.now();
-        if (now - this.lastReconnectAttempt < 30000) {
-          console.log('⏳ Cooldown ativo, aguardando antes de tentar novamente...');
-          return;
-        }
-
-        this.reconnecting = true;
-        this.reconnectAttempts++;
-        this.lastReconnectAttempt = now;
-
-        console.log(`🔄 Tentativa ${this.reconnectAttempts}/${this.maxReconnectAttempts} de reconexão...`);
-
-        // Parar polling atual de forma segura
-        try {
-          this.bot.stopPolling();
-          this.isPolling = false;
-        } catch (stopError) {
-          console.log('⚠️ Erro ao parar polling:', stopError.message);
-        }
-
-        // Aguardar tempo crescente antes de reconectar
-        const waitTime = Math.min(5000 * this.reconnectAttempts, 30000); // Máximo 30s
-        console.log(`⏳ Aguardando ${waitTime/1000}s antes de reconectar...`);
-
-        setTimeout(() => {
-          this.attemptReconnect();
-        }, waitTime);
+        console.log('💡 Solução: Pare outras instâncias do bot antes de iniciar uma nova.');
+        console.log('🔄 Não tentando reconectar automaticamente para evitar conflitos.');
+        return;
 
       } else if (error.code === 'ETELEGRAM' && error.message.includes('401')) {
         console.log('❌ TOKEN INVÁLIDO! Verifique o TELEGRAM_TOKEN no arquivo .env');
@@ -245,6 +208,24 @@ class TelegramOlympIA {
   }
 
   /**
+   * Tentar reconectar após erro de polling
+   */
+  async attemptReconnect() {
+    try {
+      console.log('🔄 Tentando reconectar...');
+      await this.bot.startPolling();
+      this.isPolling = true;
+      this.reconnecting = false;
+      this.reconnectAttempts = 0;
+      console.log('✅ Reconexão bem-sucedida!');
+    } catch (error) {
+      console.log('❌ Falha na reconexão:', error.message);
+      this.reconnecting = false;
+      // Se falhar, não tentar novamente automaticamente
+    }
+  }
+
+  /**
    * Verificar se há conflitos de polling antes de iniciar
    */
   async checkForConflicts() {
@@ -253,14 +234,9 @@ class TelegramOlympIA {
     try {
       // Tentar fazer uma requisição de teste
       const botInfo = await this.bot.getMe();
-      console.log('⚠️ DETECTADO: Bot já está rodando em outro lugar!');
-      console.log('📋 Informações do bot ativo:', botInfo.username);
-      console.log('💡 Para resolver:');
-      console.log('   1. Pare a instância local: Ctrl+C');
-      console.log('   2. Pare o Railway: railway down');
-      console.log('   3. Aguarde 30 segundos');
-      console.log('   4. Inicie apenas UMA instância');
-      return false;
+      console.log('✅ Bot token válido. Username:', botInfo.username);
+      console.log('✅ Nenhum conflito detectado. Iniciando bot...');
+      return true;
     } catch (error) {
       if (error.code === 'ETELEGRAM' && error.message.includes('401')) {
         console.log('❌ TOKEN INVÁLIDO! Verifique o TELEGRAM_TOKEN no arquivo .env');
@@ -1794,14 +1770,17 @@ Se você inverte, ninguém mais confia em você.
       const emoji = COMMAND_ICONS['/imagem'];
 
       // Menu de opções premium
+      const promptId = ++imagePromptCounter;
+      imagePrompts[promptId] = prompt;
+
       const keyboard = {
         inline_keyboard: [
           [
-            { text: '🚀 Ideogram AI v3 Turbo (Premium)', callback_data: `ideogram_${prompt.replace(/\s+/g, '_')}` },
-            { text: '⚡ Pollinations.ai (Grátis)', callback_data: `pollinations_${prompt.replace(/\s+/g, '_')}` }
+            { text: '🚀 Ideogram AI v3 Turbo (Premium)', callback_data: `ideogram_${promptId}` },
+            { text: '⚡ Pollinations.ai (Grátis)', callback_data: `pollinations_${promptId}` }
           ],
           [
-            { text: '🎯 Auto (Ideogram + Fallback)', callback_data: `auto_${prompt.replace(/\s+/g, '_')}` }
+            { text: '🎯 Auto (Ideogram + Fallback)', callback_data: `auto_${promptId}` }
           ]
         ]
       };
@@ -1838,8 +1817,15 @@ Se você inverte, ninguém mais confia em você.
       const emoji = '🎨';
 
       if (data.startsWith('ideogram_') || data.startsWith('pollinations_') || data.startsWith('auto_')) {
-        const type = data.split('_')[0];
-        const prompt = data.split('_').slice(1).join(' ').replace(/_/g, ' ');
+        const parts = data.split('_');
+        const type = parts[0];
+        const promptId = parseInt(parts[1]);
+        const prompt = imagePrompts[promptId];
+
+        if (!prompt) {
+          await this.bot.answerCallbackQuery(query.id, '❌ Prompt não encontrado. Tente novamente.');
+          return;
+        }
 
         await this.bot.answerCallbackQuery(query.id, '⏳ Gerando imagem...');
 
